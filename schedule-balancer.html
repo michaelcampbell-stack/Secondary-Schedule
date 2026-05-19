@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026–2027 Schedule Balancer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; min-height: 100vh; }
+
+  /* ── Header ── */
+  header {
+    background: #0d0d1a; color: #f0f0f0;
+    padding: 12px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+    position: sticky; top: 0; z-index: 200; gap: 12px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
+  header p  { font-size: 11px; color: #8888aa; margin-top: 2px; }
+  .header-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+  .legend-item {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 10px; color: #ccc;
+    background: #1e1e35; padding: 3px 7px;
+    border-radius: 5px; border: 1px solid #333355; white-space: nowrap;
+  }
+  .legend-swatch {
+    width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; font-weight: 900;
+  }
+
+  /* ── Toolbar buttons ── */
+  .toolbar-btn {
+    border: 1px solid #444466; padding: 5px 12px;
+    border-radius: 6px; font-size: 11px; cursor: pointer;
+    transition: background 0.15s; font-family: inherit; font-weight: 600;
+  }
+  .btn-secondary  { background: #2e2e50; color: #ccd; }
+  .btn-secondary:hover { background: #3a3a60; }
+  .btn-save   { background: #1e3a5f; color: #93c5fd; border-color: #2563eb; }
+  .btn-save:hover { background: #1e40af; color: #fff; }
+  .btn-load   { background: #1a2e1a; color: #86efac; border-color: #16a34a; }
+  .btn-load:hover { background: #166534; color: #fff; }
+  .btn-danger { background: #3f1212; color: #fca5a5; border-color: #7f1d1d; }
+  .btn-danger:hover { background: #7f1d1d; color: #fff; }
+
+  /* ── Stats bar ── */
+  .stats-bar {
+    background: #111125; padding: 6px 20px;
+    display: flex; gap: 16px; align-items: center;
+    font-size: 11px; color: #8888aa;
+    border-bottom: 1px solid #222244; flex-wrap: wrap;
+  }
+  .stats-bar strong { color: #e0e0f0; }
+  .balanced-count { color: #4ade80; font-weight: 800; font-size: 13px; }
+  .parked-count   { color: #fbbf24; font-weight: 700; }
+  .hint { margin-left: auto; font-style: italic; color: #444466; font-size: 10px; }
+
+  /* ══════════════════════════════════════════
+     STORAGE PANEL (grade-level)
+     ══════════════════════════════════════════ */
+  .storage-panel { background: #12121f; border-bottom: 2px solid #2a2a45; }
+  .storage-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 20px; cursor: pointer; user-select: none;
+    border-bottom: 1px solid #1e1e35;
+  }
+  .storage-panel-header:hover { background: #16162a; }
+  .storage-panel-title {
+    font-size: 11px; font-weight: 700; color: #9090bb;
+    text-transform: uppercase; letter-spacing: 0.8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .stored-count-badge {
+    background: #2e2e50; color: #8888cc;
+    font-size: 10px; padding: 1px 7px; border-radius: 99px; font-weight: 700; letter-spacing: 0;
+  }
+  .stored-count-badge.has-stored { background: #3a2800; color: #f59e0b; }
+  .storage-toggle-btn {
+    background: none; border: 1px solid #333355; color: #7777aa;
+    font-size: 10px; padding: 2px 8px; border-radius: 4px;
+    cursor: pointer; font-family: inherit;
+  }
+  .storage-toggle-btn:hover { background: #1e1e35; }
+  .storage-body { padding: 10px 20px 12px; display: flex; flex-direction: column; gap: 5px; }
+  .storage-body.collapsed { display: none; }
+
+  .grade-row { border-radius: 8px; border: 1px solid #2a2a45; overflow: hidden; transition: border-color 0.2s; }
+  .grade-row.is-active  { border-color: #3a3a60; }
+  .grade-row.is-stored  { border-color: #3a3000; background: #100e00; }
+  .grade-row-header { display: flex; align-items: center; gap: 10px; padding: 7px 12px; background: #16162a; }
+  .grade-row.is-stored .grade-row-header { background: #1a1500; }
+
+  .grade-checkbox-wrap { display: flex; align-items: center; gap: 7px; cursor: pointer; flex: 1; }
+  .grade-checkbox-wrap input[type="checkbox"] {
+    appearance: none; width: 17px; height: 17px;
+    border: 2px solid #444466; border-radius: 4px;
+    background: #1a1a30; cursor: pointer; flex-shrink: 0; position: relative;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .grade-checkbox-wrap input[type="checkbox"]:checked { background: #22c55e; border-color: #16a34a; }
+  .grade-checkbox-wrap input[type="checkbox"]:checked::after {
+    content: '✓'; position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 10px; font-weight: 900; padding-top: 1px;
+  }
+  .grade-row-swatch {
+    width: 24px; height: 24px; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 900; flex-shrink: 0;
+  }
+  .grade-row-label { font-size: 12px; font-weight: 700; color: #d0d0ee; }
+  .grade-row.is-stored .grade-row-label { color: #a09060; }
+  .grade-row-meta { margin-left: auto; display: flex; align-items: center; gap: 7px; }
+  .grade-class-count { font-size: 10px; color: #666688; white-space: nowrap; }
+  .grade-row.is-active .grade-class-count { color: #22c55e; }
+  .grade-row.is-stored .grade-class-count { color: #f59e0b; }
+  .grade-status-tag {
+    font-size: 9px; font-weight: 700; padding: 2px 7px;
+    border-radius: 99px; letter-spacing: 0.3px; text-transform: uppercase;
+  }
+  .tag-active  { background: #166534; color: #4ade80; }
+  .tag-stored  { background: #78350f; color: #fbbf24; }
+  .tag-empty   { background: #1e1e35; color: #555577; }
+  .storage-cards-area {
+    padding: 7px 12px 9px; display: flex; gap: 6px; flex-wrap: wrap;
+    background: #0e0c00; border-top: 1px solid #2a2200;
+  }
+
+  /* ══════════════════════════════════════════
+     HOLD COLUMN (left of Period 1)
+     ══════════════════════════════════════════ */
+  .hold-col {
+    flex: 0 0 200px;
+    background: #1a1200; border: 2px solid #92400e; border-radius: 12px;
+    overflow: hidden; min-height: 180px;
+    display: flex; flex-direction: column;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  }
+  .hold-col.drag-over {
+    border-color: #f59e0b; background: #221500;
+    box-shadow: 0 0 0 3px rgba(245,158,11,0.4);
+  }
+  .hold-col-header {
+    padding: 10px 12px 8px; background: #1f1600;
+    border-bottom: 1px solid #78350f;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .hold-col-label { font-size: 14px; font-weight: 800; color: #fbbf24; letter-spacing: -0.3px; }
+  .hold-col-meta  { display: flex; align-items: center; gap: 6px; }
+  .hold-col-count { font-size: 10px; color: #a16207; font-weight: 700; }
+  .hold-clear-btn {
+    font-size: 9px; padding: 2px 7px;
+    background: #3a2000; color: #f59e0b;
+    border: 1px solid #78350f; border-radius: 4px;
+    cursor: pointer; font-family: inherit;
+  }
+  .hold-clear-btn:hover { background: #78350f; color: #fff; }
+  .hold-col-cards {
+    padding: 8px 8px 10px; display: flex; flex-direction: column; gap: 5px;
+    min-height: 60px; flex: 1;
+  }
+  .hold-col-empty {
+    text-align: center; color: #3a2600; font-size: 10px;
+    padding: 20px 8px; font-style: italic; line-height: 1.5;
+  }
+
+  /* ── Board ── */
+  .board { display: flex; gap: 10px; padding: 14px; overflow-x: auto; min-height: 280px; align-items: flex-start; }
+
+  /* ── Period column ── */
+  .period-col {
+    flex: 0 0 210px;
+    background: #1e1e35; border: 2px solid #2e2e50; border-radius: 12px;
+    overflow: hidden; transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    min-height: 180px;
+  }
+  .period-col.balanced { background: #0f2318; border-color: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,0.25), 0 4px 16px rgba(34,197,94,0.15); }
+  .period-col.conflict { background: #231508; border-color: #f97316; box-shadow: 0 0 0 2px rgba(249,115,22,0.25); }
+  .period-col.drag-over    { border-color: #818cf8; background: #1a1a40; box-shadow: 0 0 0 3px rgba(129,140,248,0.4); }
+  .period-col.drag-blocked { border-color: #ef4444 !important; background: #1f0a0a !important; box-shadow: 0 0 0 3px rgba(239,68,68,0.45) !important; }
+  @keyframes reject-flash {
+    0%   { background: #3f0808; border-color: #ef4444; box-shadow: 0 0 0 5px rgba(239,68,68,0.65); }
+    60%  { background: #280606; border-color: #dc2626; }
+    100% { }
+  }
+  .period-col.reject-flash { animation: reject-flash 0.42s ease-out; }
+  .period-col.special-period { background: #16121e; border-color: #3a2e45; opacity: 0.88; }
+  .period-col.special-period .period-header { background: #110d1a; border-bottom-color: #3a2e45; }
+  .period-col.special-period .period-label  { color: #9977bb; }
+
+  .period-header { padding: 10px 12px 8px; background: #16162a; border-bottom: 1px solid #2e2e50; transition: background 0.2s; }
+  .period-col.balanced .period-header { background: #0a1f10; border-bottom-color: #166534; }
+  .period-col.conflict  .period-header { background: #1f1008; border-bottom-color: #7c2d12; }
+  .period-header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+  .period-label { font-size: 14px; font-weight: 800; color: #e0e0f0; letter-spacing: -0.3px; }
+  .period-col.balanced .period-label { color: #4ade80; }
+  .period-col.conflict  .period-label { color: #fb923c; }
+
+  .period-status { font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 99px; letter-spacing: 0.4px; text-transform: uppercase; }
+  .status-balanced   { background: #16a34a; color: #fff; }
+  .status-partial    { background: #166534; color: #4ade80; }
+  .status-unbalanced { background: #2e2e50; color: #8888aa; }
+  .status-conflict   { background: #ea580c; color: #fff; }
+  .status-special    { background: #44384a; color: #c4a8d0; }
+
+  .grade-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+  .grade-pill { font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 2px; }
+
+  .cards-area { padding: 8px 8px 10px; display: flex; flex-direction: column; gap: 5px; min-height: 60px; }
+  .empty-hint { text-align: center; color: #444466; font-size: 10px; padding: 16px 8px; font-style: italic; }
+
+  /* ── Class card ── */
+  .class-card {
+    border-radius: 8px; padding: 7px 9px 7px 13px;
+    cursor: grab; user-select: none;
+    transition: transform 0.12s, box-shadow 0.12s, opacity 0.12s;
+    position: relative; border-width: 2px; border-style: solid;
+  }
+  .class-card:active { cursor: grabbing; }
+  .class-card:hover  { transform: translateY(-2px) scale(1.01); box-shadow: 0 6px 18px rgba(0,0,0,0.5); z-index: 10; }
+  .class-card.dragging { opacity: 0.3; transform: scale(0.97); }
+  .class-card.compact { padding: 5px 9px 5px 11px; min-width: 155px; max-width: 195px; }
+  .class-card.compact .card-subject { font-size: 11px; }
+  .class-card.compact .card-teacher { font-size: 9px; }
+  .class-card.parked-card { opacity: 0.85; }
+
+  .class-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 5px; border-radius: 6px 0 0 6px;
+  }
+
+  .card-top { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+  .card-symbol { font-size: 14px; line-height: 1; flex-shrink: 0; }
+  .card-grade-label {
+    font-size: 9px; font-weight: 900; text-transform: uppercase;
+    letter-spacing: 0.5px; padding: 2px 6px; border-radius: 4px;
+  }
+  .card-subject { font-size: 12px; font-weight: 700; color: #f0f0f0; line-height: 1.3; margin-bottom: 2px; }
+  .card-teacher { font-size: 10px; color: #9999bb; line-height: 1.3; }
+  .conflict-warning { font-size: 9px; font-weight: 700; color: #fb923c; margin-top: 3px; }
+
+  /* ── Card action buttons (appear on hover) ── */
+  .card-actions {
+    display: none; gap: 3px; margin-left: auto; flex-shrink: 0; align-items: center;
+  }
+  .class-card:hover .card-actions { display: flex; }
+  .card-action-btn {
+    background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.12);
+    color: #aaa; width: 19px; height: 19px; border-radius: 4px;
+    cursor: pointer; font-size: 10px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.12s, color 0.12s; flex-shrink: 0;
+    line-height: 1;
+  }
+  .card-action-btn:hover        { background: rgba(0,0,0,0.75); color: #fff; }
+  .btn-duplicate:hover { background: #1e3a5f; color: #93c5fd; border-color: #2563eb; }
+  .btn-park:hover      { background: #2a1e00; color: #fbbf24; border-color: #92400e; }
+  .btn-delete:hover    { background: #7f1d1d; color: #fca5a5; border-color: #991b1b; }
+
+  /* ── Per-card balanced state ── */
+  .class-card.grade-balanced {
+    background: #052e16 !important; border-color: #22c55e !important; border-style: solid !important;
+    box-shadow: 0 0 0 2px rgba(34,197,94,0.35), 0 4px 14px rgba(34,197,94,0.2) !important;
+  }
+  .class-card.grade-balanced::before      { background: #22c55e !important; }
+  .class-card.grade-balanced .card-grade-label { background: #16a34a !important; color: #fff !important; }
+  .class-card.grade-balanced .card-symbol      { color: #4ade80 !important; }
+  .class-card.grade-balanced .card-subject     { color: #bbf7d0 !important; }
+  .class-card.grade-balanced .card-teacher     { color: #86efac !important; }
+  .class-card.grade-balanced .card-top::after {
+    content: '✓ Balanced'; margin-left: auto;
+    font-size: 8px; font-weight: 800; color: #4ade80; letter-spacing: 0.4px; text-transform: uppercase;
+    background: rgba(34,197,94,0.15); padding: 2px 5px; border-radius: 4px;
+    border: 1px solid rgba(34,197,94,0.4); white-space: nowrap;
+  }
+
+  /* ═══════════════ GRADE THEMES ═══════════════ */
+  .g11 { background: #0a1a2e; border-color: #0072B2; }
+  .g11::before { background: #0072B2; }
+  .g11 .card-grade-label { background: #0072B2; color: #fff; }
+  .g11 .card-symbol { color: #56B4E9; }
+
+  .g12 { background: #2e1200; border-color: #D55E00; }
+  .g12::before { background: #D55E00; }
+  .g12 .card-grade-label { background: #D55E00; color: #fff; }
+  .g12 .card-symbol { color: #ff9a50; }
+
+  .g10 { background: #1e1a00; border-color: #F0E442; }
+  .g10::before { background: #F0E442; }
+  .g10 .card-grade-label { background: #F0E442; color: #1a1a00; }
+  .g10 .card-symbol { color: #F0E442; }
+
+  .g9  { background: #00180f; border-color: #009E73; }
+  .g9::before  { background: #009E73; }
+  .g9  .card-grade-label { background: #009E73; color: #fff; }
+  .g9  .card-symbol { color: #4dd9a8; }
+
+  .g8  { background: #001830; border-color: #56B4E9; border-style: dashed; }
+  .g8::before  { background: #56B4E9; }
+  .g8  .card-grade-label { background: #56B4E9; color: #001830; }
+  .g8  .card-symbol { color: #56B4E9; }
+
+  .g7  { background: #211500; border-color: #E69F00; border-style: dashed; }
+  .g7::before  { background: #E69F00; }
+  .g7  .card-grade-label { background: #E69F00; color: #1a0f00; }
+  .g7  .card-symbol { color: #E69F00; }
+
+  .g6  { background: #220a18; border-color: #CC79A7; border-style: dotted; }
+  .g6::before  { background: #CC79A7; }
+  .g6  .card-grade-label { background: #CC79A7; color: #fff; }
+  .g6  .card-symbol { color: #CC79A7; }
+
+  .gpill-11       { background: #0072B2; color: #fff; }
+  .gpill-12       { background: #D55E00; color: #fff; }
+  .gpill-10       { background: #c8bc00; color: #111; }
+  .gpill-9        { background: #009E73; color: #fff; }
+  .gpill-8        { background: #56B4E9; color: #001830; }
+  .gpill-7        { background: #E69F00; color: #1a0f00; }
+  .gpill-6        { background: #CC79A7; color: #fff; }
+  .gpill-balanced { background: #16a34a; color: #fff; font-weight: 900; }
+
+  /* ══════════════════════════════════════════
+     TEMPLATE MODAL
+     ══════════════════════════════════════════ */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75); z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: #16162a; border: 1px solid #333355; border-radius: 14px;
+    width: 480px; max-width: 95vw; max-height: 85vh;
+    display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.7);
+  }
+  .modal-header {
+    padding: 16px 20px 14px; border-bottom: 1px solid #2a2a45;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-title { font-size: 15px; font-weight: 700; color: #e0e0f0; }
+  .modal-close {
+    background: none; border: none; color: #8888aa;
+    font-size: 20px; cursor: pointer; line-height: 1; padding: 0;
+  }
+  .modal-close:hover { color: #fff; }
+  .modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px; }
+
+  .save-new-area { display: flex; gap: 8px; }
+  .template-name-input {
+    flex: 1; background: #0d0d1a; border: 1px solid #444466; color: #e0e0f0;
+    padding: 7px 12px; border-radius: 6px; font-size: 13px; font-family: inherit;
+    outline: none;
+  }
+  .template-name-input:focus { border-color: #6366f1; }
+  .template-name-input::placeholder { color: #555577; }
+
+  .template-list { display: flex; flex-direction: column; gap: 8px; }
+  .template-list-label { font-size: 11px; font-weight: 700; color: #6666aa; text-transform: uppercase; letter-spacing: 0.6px; }
+  .template-item {
+    background: #1e1e35; border: 1px solid #2e2e50; border-radius: 8px;
+    padding: 10px 14px; display: flex; align-items: center; gap: 10px;
+  }
+  .template-item-info { flex: 1; min-width: 0; }
+  .template-item-name { font-size: 13px; font-weight: 700; color: #d0d0ee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .template-item-meta { font-size: 10px; color: #666688; margin-top: 2px; }
+  .template-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .template-btn {
+    font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 5px;
+    cursor: pointer; border: 1px solid transparent; font-family: inherit;
+  }
+  .tbtn-load   { background: #166534; color: #4ade80; border-color: #22c55e; }
+  .tbtn-load:hover { background: #16a34a; }
+  .tbtn-delete { background: #3f1212; color: #fca5a5; border-color: #7f1d1d; }
+  .tbtn-delete:hover { background: #7f1d1d; }
+  .no-templates { color: #444466; font-size: 12px; font-style: italic; text-align: center; padding: 12px 0; }
+
+  @media (max-width: 900px) {
+    .board { flex-direction: column; }
+    .period-col { flex: none; width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>2026–2027 Schedule Balancer</h1>
+    <p>Periods 1–8 &nbsp;·&nbsp; 1 &amp; 8 special &nbsp;·&nbsp; Green = exactly 2 of that grade per period</p>
+  </div>
+  <div class="header-right">
+    <div class="legend" id="legend"></div>
+    <button class="toolbar-btn btn-save"      onclick="openTemplateModal('save')">💾 Save</button>
+    <button class="toolbar-btn btn-load"      onclick="openTemplateModal('load')">📂 Load</button>
+    <button class="toolbar-btn btn-secondary" onclick="resetSchedule()">↺ Reset</button>
+  </div>
+</header>
+
+<div class="stats-bar">
+  <span>On Board: <strong id="totalClasses">0</strong></span>
+  <span>Hidden: <strong id="storedCount">0</strong></span>
+  <span>In Hold: <span class="parked-count" id="parkedCount">0</span></span>
+  <span id="gradeBreakdown"></span>
+  <span>Balanced: <span class="balanced-count" id="balancedCount">0</span> / 6 periods</span>
+  <span id="conflictInfo" style="color:#fb923c;display:none;">⚠ <strong id="conflictCount">0</strong> conflict(s)</span>
+  <span class="hint">Hover a card for actions · Drag to Hold column to set a class aside · Toggle grade checkboxes to show/hide grade levels</span>
+</div>
+
+<!-- ══ GRADE STORAGE ══ -->
+<div class="storage-panel">
+  <div class="storage-panel-header" onclick="toggleStoragePanel()">
+    <div class="storage-panel-title">
+      Grade Level Storage
+      <span class="stored-count-badge" id="storedBadge">0 stored</span>
+    </div>
+    <button class="storage-toggle-btn" id="storagePanelBtn">▲ Collapse</button>
+  </div>
+  <div class="storage-body" id="storageBody"></div>
+</div>
+
+<div class="board" id="board"></div>
+
+<!-- ══ TEMPLATE MODAL ══ -->
+<div class="modal-overlay" id="templateModal" onclick="closeTemplateModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Save Template</span>
+      <button class="modal-close" onclick="closeTemplateModal()">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+/* ─────────────────────────────────────
+   GRADE METADATA — Okabe-Ito palette
+   ───────────────────────────────────── */
+const GRADE_META = {
+  6:  { color: '#CC79A7', textColor: '#fff',    symbol: '◆', cls: 'g6',  label: '6th'  },
+  7:  { color: '#E69F00', textColor: '#1a0f00', symbol: '▲', cls: 'g7',  label: '7th'  },
+  8:  { color: '#56B4E9', textColor: '#001830', symbol: '●', cls: 'g8',  label: '8th'  },
+  9:  { color: '#009E73', textColor: '#fff',    symbol: '★', cls: 'g9',  label: '9th'  },
+  10: { color: '#F0E442', textColor: '#1a1a00', symbol: '■', cls: 'g10', label: '10th' },
+  11: { color: '#0072B2', textColor: '#fff',    symbol: '✚', cls: 'g11', label: '11th' },
+  12: { color: '#D55E00', textColor: '#fff',    symbol: '⬟', cls: 'g12', label: '12th' },
+};
+
+const ALL_GRADES      = [6, 7, 8, 9, 10, 11, 12];
+const SPECIAL_PERIODS = new Set([1, 8]);
+const LS_KEY          = 'wcs_schedule_templates';
+
+const INITIAL_CLASSES = [
+  // ── Period 2 ──────────────────────────────────────────────────────────────
+  { id:  1, subject: 'Math A',               grade:  6, teacher: 'Pamela Hinshaw',     period: 2, parked: false },
+  { id:  2, subject: 'Bible (Boys)',          grade:  6, teacher: 'Cameron Cunningham', period: 2, parked: false },
+  { id:  3, subject: 'DE College Math/Stats',grade: 12, teacher: 'Katie Moe',          period: 2, parked: false },
+  { id:  4, subject: 'Algebra I',            grade:  8, teacher: 'Lewellyn Chapman',   period: 2, parked: false },
+  { id:  5, subject: 'Geometry (H)',          grade:  9, teacher: 'Sheryl Rogers',      period: 2, parked: false },
+  { id:  6, subject: 'Chemistry',            grade: 10, teacher: 'Albert Einstein',    period: 2, parked: false },
+  { id:  7, subject: 'Biology',              grade:  9, teacher: 'Brady Dennis',       period: 2, parked: false },
+  { id:  8, subject: 'Science',              grade:  6, teacher: 'Amber Noble',        period: 2, parked: false },
+  { id:  9, subject: 'Bible',               grade:  7, teacher: 'Taylor Wade',        period: 2, parked: false },
+  { id: 10, subject: 'Bible',               grade:  8, teacher: 'Dennis Fowler',      period: 2, parked: false },
+  { id: 11, subject: 'Spanish I',           grade:  8, teacher: 'Shearer',            period: 2, parked: false },
+  { id: 12, subject: 'English IV',          grade: 12, teacher: 'Lesa Lynch',         period: 2, parked: false },
+  { id: 13, subject: 'English (H)',          grade:  8, teacher: 'Penny Fell',         period: 2, parked: false },
+  { id: 14, subject: 'Bible',               grade:  6, teacher: 'Shelly Edwards',     period: 2, parked: false },
+  { id: 15, subject: 'Grammar A',           grade:  7, teacher: 'Kelly Polk',         period: 2, parked: false },
+  { id: 16, subject: 'English',             grade:  8, teacher: 'Brenda Day',         period: 2, parked: false },
+  { id: 17, subject: 'History',             grade:  9, teacher: 'Jeremy Richards',    period: 2, parked: false },
+  { id: 18, subject: 'DE History',          grade: 11, teacher: 'William Cowan',      period: 2, parked: false },
+  { id: 19, subject: 'History',             grade: 11, teacher: 'Josephus',           period: 2, parked: false },
+  { id: 20, subject: 'Tech',                grade: 10, teacher: 'Krista Snow',        period: 2, parked: false },
+  { id: 21, subject: 'College Prep',        grade: 11, teacher: 'Tina Harper',        period: 2, parked: false },
+  // ── Period 3 ──────────────────────────────────────────────────────────────
+  { id: 22, subject: 'Math A',              grade:  6, teacher: 'Pamela Hinshaw',     period: 3, parked: false },
+  { id: 23, subject: 'Pre-Algebra',         grade:  7, teacher: 'Cameron Cunningham', period: 3, parked: false },
+  { id: 24, subject: 'Algebra I',           grade:  9, teacher: 'Lewellyn Chapman',   period: 3, parked: false },
+  { id: 25, subject: 'Geometry',            grade: 10, teacher: 'Sheryl Rogers',      period: 3, parked: false },
+  { id: 26, subject: 'Chemistry',           grade: 10, teacher: 'Albert Einstein',    period: 3, parked: false },
+  { id: 27, subject: 'Biology',             grade:  9, teacher: 'Brady Dennis',       period: 3, parked: false },
+  { id: 28, subject: 'Science',             grade:  6, teacher: 'Amber Noble',        period: 3, parked: false },
+  { id: 29, subject: 'Bible',               grade:  7, teacher: 'Taylor Wade',        period: 3, parked: false },
+  { id: 30, subject: 'Bible',               grade:  8, teacher: 'Dennis Fowler',      period: 3, parked: false },
+  { id: 31, subject: 'Spanish I',           grade:  9, teacher: 'Shearer',            period: 3, parked: false },
+  { id: 32, subject: 'AP English IV',       grade: 12, teacher: 'Lesa Lynch',         period: 3, parked: false },
+  { id: 33, subject: 'English (H)',          grade:  8, teacher: 'Penny Fell',         period: 3, parked: false },
+  { id: 34, subject: 'Grammar A',           grade:  6, teacher: 'Shelly Edwards',     period: 3, parked: false },
+  { id: 35, subject: 'Grammar B',           grade:  7, teacher: 'Kelly Polk',         period: 3, parked: false },
+  { id: 36, subject: 'English',             grade:  8, teacher: 'Brenda Day',         period: 3, parked: false },
+  { id: 37, subject: 'History',             grade:  9, teacher: 'Jeremy Richards',    period: 3, parked: false },
+  { id: 38, subject: 'Government',          grade: 12, teacher: 'William Cowan',      period: 3, parked: false },
+  { id: 39, subject: 'History',             grade: 10, teacher: 'Josephus',           period: 3, parked: false },
+  // ── Period 4 ──────────────────────────────────────────────────────────────
+  { id: 40, subject: 'Math B',              grade:  6, teacher: 'Pamela Hinshaw',     period: 4, parked: false },
+  { id: 41, subject: 'Pre-Algebra',         grade:  7, teacher: 'Cameron Cunningham', period: 4, parked: false },
+  { id: 42, subject: 'Algebra II (H)',       grade: 10, teacher: 'Lewellyn Chapman',   period: 4, parked: false },
+  { id: 43, subject: 'Pre-Calculus (H)',     grade: 11, teacher: 'Sheryl Rogers',      period: 4, parked: false },
+  { id: 44, subject: 'Forensics',           grade: 12, teacher: 'Albert Einstein',    period: 4, parked: false },
+  { id: 45, subject: 'Life Science',        grade:  7, teacher: 'Brady Dennis',       period: 4, parked: false },
+  { id: 46, subject: 'History',             grade:  6, teacher: 'Amber Noble',        period: 4, parked: false },
+  { id: 47, subject: 'Bible',               grade:  9, teacher: 'Taylor Wade',        period: 4, parked: false },
+  { id: 48, subject: 'Bible',               grade: 10, teacher: 'Dennis Fowler',      period: 4, parked: false },
+  { id: 49, subject: 'Spanish II',          grade:  9, teacher: 'Shearer',            period: 4, parked: false },
+  { id: 50, subject: 'English (H)',          grade:  9, teacher: 'Lesa Lynch',         period: 4, parked: false },
+  { id: 51, subject: 'English',             grade:  9, teacher: 'Penny Fell',         period: 4, parked: false },
+  { id: 52, subject: 'Grammar B',           grade:  6, teacher: 'Shelly Edwards',     period: 4, parked: false },
+  { id: 53, subject: 'Reading A',           grade:  7, teacher: 'Kelly Polk',         period: 4, parked: false },
+  { id: 54, subject: 'Speech',              grade: 10, teacher: 'Brenda Day',         period: 4, parked: false },
+  { id: 55, subject: 'History',             grade:  7, teacher: 'Jeremy Richards',    period: 4, parked: false },
+  { id: 56, subject: 'DE Government',       grade: 12, teacher: 'William Cowan',      period: 4, parked: false },
+  { id: 57, subject: 'History',             grade: 10, teacher: 'Josephus',           period: 4, parked: false },
+  // ── Period 5 ──────────────────────────────────────────────────────────────
+  { id: 58, subject: 'Math B',              grade:  6, teacher: 'Pamela Hinshaw',     period: 5, parked: false },
+  { id: 59, subject: 'Pre-Algebra',         grade:  8, teacher: 'Cameron Cunningham', period: 5, parked: false },
+  { id: 60, subject: 'Algebra II',          grade: 11, teacher: 'Lewellyn Chapman',   period: 5, parked: false },
+  { id: 61, subject: 'Pre-Calculus',        grade: 12, teacher: 'Sheryl Rogers',      period: 5, parked: false },
+  { id: 62, subject: 'Physics',             grade: 11, teacher: 'Albert Einstein',    period: 5, parked: false },
+  { id: 63, subject: 'Life Science',        grade:  7, teacher: 'Brady Dennis',       period: 5, parked: false },
+  { id: 64, subject: 'History',             grade:  6, teacher: 'Amber Noble',        period: 5, parked: false },
+  { id: 65, subject: 'Bible',               grade:  9, teacher: 'Taylor Wade',        period: 5, parked: false },
+  { id: 66, subject: 'Bible',               grade: 10, teacher: 'Dennis Fowler',      period: 5, parked: false },
+  { id: 67, subject: 'Spanish II',          grade: 10, teacher: 'Shearer',            period: 5, parked: false },
+  { id: 68, subject: 'English (H)',          grade: 10, teacher: 'Lesa Lynch',         period: 5, parked: false },
+  { id: 69, subject: 'English',             grade: 11, teacher: 'Penny Fell',         period: 5, parked: false },
+  { id: 70, subject: 'Reading A',           grade:  6, teacher: 'Shelly Edwards',     period: 5, parked: false },
+  { id: 71, subject: 'Reading B',           grade:  7, teacher: 'Kelly Polk',         period: 5, parked: false },
+  { id: 72, subject: 'History',             grade:  7, teacher: 'Jeremy Richards',    period: 5, parked: false },
+  { id: 73, subject: 'History',             grade:  8, teacher: 'Josephus',           period: 5, parked: false },
+  // ── Period 6 ──────────────────────────────────────────────────────────────
+  { id: 74, subject: 'Math A',              grade:  7, teacher: 'Pamela Hinshaw',     period: 6, parked: false },
+  { id: 75, subject: 'Pre-Algebra',         grade:  8, teacher: 'Cameron Cunningham', period: 6, parked: false },
+  { id: 76, subject: 'Physics',             grade: 11, teacher: 'Albert Einstein',    period: 6, parked: false },
+  { id: 77, subject: 'DE Biology 1408',     grade: 12, teacher: 'Brady Dennis',       period: 6, parked: false },
+  { id: 78, subject: 'Science',             grade:  8, teacher: 'Amber Noble',        period: 6, parked: false },
+  { id: 79, subject: 'Bible',               grade: 11, teacher: 'Taylor Wade',        period: 6, parked: false },
+  { id: 80, subject: 'Bible',               grade: 12, teacher: 'Dennis Fowler',      period: 6, parked: false },
+  { id: 81, subject: 'Spanish III',         grade: 11, teacher: 'Shearer',            period: 6, parked: false },
+  { id: 82, subject: 'English II',          grade: 10, teacher: 'Lesa Lynch',         period: 6, parked: false },
+  { id: 83, subject: 'DE English 1301',     grade: 11, teacher: 'Penny Fell',         period: 6, parked: false },
+  { id: 84, subject: 'Reading B',           grade:  6, teacher: 'Shelly Edwards',     period: 6, parked: false },
+  { id: 85, subject: 'History',             grade:  8, teacher: 'Josephus',           period: 6, parked: false },
+  // ── Period 7 ──────────────────────────────────────────────────────────────
+  { id: 86, subject: 'Math A',              grade:  7, teacher: 'Pamela Hinshaw',     period: 7, parked: false },
+  { id: 87, subject: 'Science',             grade:  8, teacher: 'Amber Noble',        period: 7, parked: false },
+  { id: 88, subject: 'Bible',               grade: 11, teacher: 'Taylor Wade',        period: 7, parked: false },
+  { id: 89, subject: 'Bible',               grade: 12, teacher: 'Dennis Fowler',      period: 7, parked: false },
+];
+
+/* ─── State ─── */
+let classes         = JSON.parse(JSON.stringify(INITIAL_CLASSES));
+let draggedId       = null;
+let nextId          = 90;
+let activeGradeSet  = new Set();
+let storagePanelOpen  = true;
+let parkingPanelOpen  = true;
+
+/* ─── UI toggles ─── */
+function toggleStoragePanel() {
+  storagePanelOpen = !storagePanelOpen;
+  document.getElementById('storageBody').classList.toggle('collapsed', !storagePanelOpen);
+  document.getElementById('storagePanelBtn').textContent = storagePanelOpen ? '▲ Collapse' : '▼ Expand';
+}
+function toggleParkingPanel() {
+  parkingPanelOpen = !parkingPanelOpen;
+  document.getElementById('parkingZone').style.display = parkingPanelOpen ? '' : 'none';
+  document.getElementById('parkingPanelBtn').textContent = parkingPanelOpen ? '▲ Collapse' : '▼ Expand';
+}
+function toggleGrade(grade, checked) {
+  if (checked) {
+    activeGradeSet.add(grade);
+    // Send all classes for this grade to the Hold column
+    classes.forEach(c => { if (c.grade === grade) c.parked = true; });
+  } else {
+    activeGradeSet.delete(grade);
+  }
+  render();
+}
+
+/* ─── Reset ─── */
+function resetSchedule() {
+  if (!confirm('Reset to original schedule? All changes will be lost.')) return;
+  classes = JSON.parse(JSON.stringify(INITIAL_CLASSES));
+  activeGradeSet = new Set();
+  nextId = 90;
+  render();
+}
+
+/* ─── Data helpers ─── */
+function boardClasses()    { return classes.filter(c => activeGradeSet.has(c.grade) && !c.parked); }
+function storedClasses()   { return classes.filter(c => !activeGradeSet.has(c.grade) && !c.parked); }
+function parkedClasses()   { return classes.filter(c => c.parked && activeGradeSet.has(c.grade)); }
+function classesByGrade(g) { return classes.filter(c => c.grade === g); }
+function boardByPeriod(p)  { return boardClasses().filter(c => c.period === p); }
+function activeBoardGrades() {
+  return ALL_GRADES.filter(g => activeGradeSet.has(g) && classesByGrade(g).some(c => !c.parked));
+}
+
+function teacherConflicts(period) {
+  const map = {};
+  boardByPeriod(period).forEach(c => { (map[c.teacher] = map[c.teacher] || []).push(c.id); });
+  const out = {};
+  Object.entries(map).forEach(([, ids]) => { if (ids.length > 1) ids.forEach(id => out[id] = true); });
+  return out;
+}
+function balancedGradesInPeriod(period) {
+  const pc = boardByPeriod(period);
+  const balanced = new Set();
+  activeBoardGrades().forEach(g => { if (pc.filter(c => c.grade === g).length === 2) balanced.add(g); });
+  return balanced;
+}
+function isPeriodFullyBalanced(period) {
+  const grades = activeBoardGrades();
+  const bal = balancedGradesInPeriod(period);
+  return grades.length > 0 && grades.every(g => bal.has(g));
+}
+
+/* ─── Class actions ─── */
+function deleteClass(id) {
+  classes = classes.filter(c => c.id !== id);
+  render();
+}
+
+function duplicateClass(id) {
+  const orig = classes.find(c => c.id === id);
+  if (!orig) return;
+  const copy = { ...orig, id: nextId++ };
+  const idx = classes.findIndex(c => c.id === id);
+  classes.splice(idx + 1, 0, copy);
+  render();
+}
+
+function parkClass(id) {
+  const cls = classes.find(c => c.id === id);
+  if (cls) { cls.parked = true; render(); }
+}
+
+function unparkClass(id) {
+  const cls = classes.find(c => c.id === id);
+  if (cls) { cls.parked = false; render(); }
+}
+
+function clearParking(e) {
+  e.stopPropagation();
+  if (!confirm('Remove all parked classes from the parking lot? (They will stay on the board at their assigned periods.)')) return;
+  classes.forEach(c => { c.parked = false; });
+  render();
+}
+
+/* ─── Template save / load ─── */
+function getTemplates() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); }
+  catch { return []; }
+}
+function saveTemplates(tmps) {
+  localStorage.setItem(LS_KEY, JSON.stringify(tmps));
+}
+
+function saveTemplate(name) {
+  if (!name.trim()) return;
+  const tmps = getTemplates();
+  tmps.unshift({
+    name: name.trim(),
+    savedAt: new Date().toISOString(),
+    classes: JSON.parse(JSON.stringify(classes)),
+    activeGrades: [...activeGradeSet],
+    nextId,
+  });
+  saveTemplates(tmps.slice(0, 20)); // keep max 20
+  closeTemplateModal();
+  render();
+}
+
+function loadTemplate(idx) {
+  const tmps = getTemplates();
+  const t = tmps[idx];
+  if (!t) return;
+  if (!confirm(`Load template "${t.name}"? Current work will be replaced.`)) return;
+  classes = JSON.parse(JSON.stringify(t.classes));
+  activeGradeSet = new Set(t.activeGrades || []);
+  nextId = t.nextId || (Math.max(0, ...classes.map(c => c.id)) + 1);
+  closeTemplateModal();
+  render();
+}
+
+function deleteTemplate(idx) {
+  const tmps = getTemplates();
+  if (!confirm(`Delete template "${tmps[idx]?.name}"?`)) return;
+  tmps.splice(idx, 1);
+  saveTemplates(tmps);
+  openTemplateModal('load'); // refresh
+}
+
+let modalMode = 'save';
+function openTemplateModal(mode) {
+  modalMode = mode;
+  document.getElementById('templateModal').classList.add('open');
+  renderModal();
+}
+function closeTemplateModal(e) {
+  if (e && e.target !== document.getElementById('templateModal')) return;
+  document.getElementById('templateModal').classList.remove('open');
+}
+function renderModal() {
+  const title = document.getElementById('modalTitle');
+  const body  = document.getElementById('modalBody');
+  const tmps  = getTemplates();
+  title.textContent = modalMode === 'save' ? '💾 Save Template' : '📂 Load Template';
+  body.innerHTML = '';
+
+  if (modalMode === 'save') {
+    const saveArea = document.createElement('div');
+    saveArea.className = 'save-new-area';
+    const input = document.createElement('input');
+    input.className = 'template-name-input';
+    input.placeholder = 'Template name (e.g. "Week 2 Draft")';
+    input.maxLength = 60;
+    const btn = document.createElement('button');
+    btn.className = 'toolbar-btn btn-save';
+    btn.textContent = 'Save';
+    btn.onclick = () => saveTemplate(input.value);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') saveTemplate(input.value); });
+    saveArea.appendChild(input);
+    saveArea.appendChild(btn);
+    body.appendChild(saveArea);
+    setTimeout(() => input.focus(), 50);
+  }
+
+  if (tmps.length === 0 && modalMode === 'load') {
+    const empty = document.createElement('div');
+    empty.className = 'no-templates';
+    empty.textContent = 'No saved templates yet.';
+    body.appendChild(empty);
+    return;
+  }
+
+  if (tmps.length > 0) {
+    const listLabel = document.createElement('div');
+    listLabel.className = 'template-list-label';
+    listLabel.textContent = modalMode === 'save' ? 'Existing saves' : 'Saved templates';
+    body.appendChild(listLabel);
+    const list = document.createElement('div');
+    list.className = 'template-list';
+    tmps.forEach((t, idx) => {
+      const item = document.createElement('div');
+      item.className = 'template-item';
+      const d = new Date(t.savedAt);
+      const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+      const cnt = (t.classes || []).length;
+      item.innerHTML = `
+        <div class="template-item-info">
+          <div class="template-item-name">${t.name}</div>
+          <div class="template-item-meta">${dateStr} &nbsp;·&nbsp; ${cnt} classes</div>
+        </div>`;
+      const actions = document.createElement('div');
+      actions.className = 'template-item-actions';
+      if (modalMode === 'load') {
+        const lb = document.createElement('button');
+        lb.className = 'template-btn tbtn-load';
+        lb.textContent = 'Load';
+        lb.onclick = () => loadTemplate(idx);
+        actions.appendChild(lb);
+      }
+      const db = document.createElement('button');
+      db.className = 'template-btn tbtn-delete';
+      db.textContent = '✕';
+      db.onclick = () => deleteTemplate(idx);
+      actions.appendChild(db);
+      item.appendChild(actions);
+      list.appendChild(item);
+    });
+    body.appendChild(list);
+  }
+}
+
+/* ─── Build a class card ─── */
+function buildCard(cls, { compact = false, isBalanced = false, hasConflict = false, inParking = false } = {}) {
+  const meta = GRADE_META[cls.grade] || { symbol: '?', cls: 'g11', label: `${cls.grade}th`, textColor: '#fff' };
+  const card = document.createElement('div');
+  card.className = `class-card ${meta.cls}${isBalanced ? ' grade-balanced' : ''}${compact ? ' compact' : ''}${inParking ? ' parked-card' : ''}`;
+  card.draggable = true;
+  card.dataset.id = cls.id;
+
+  card.addEventListener('dragstart', e => {
+    draggedId = cls.id;
+    setTimeout(() => card.classList.add('dragging'), 0);
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  card.addEventListener('dragend', () => {
+    card.classList.remove('dragging');
+    draggedId = null;
+  });
+
+  const top = document.createElement('div');
+  top.className = 'card-top';
+
+  const sym = document.createElement('span');
+  sym.className = 'card-symbol';
+  sym.textContent = meta.symbol;
+
+  const lbl = document.createElement('span');
+  lbl.className = 'card-grade-label';
+  lbl.textContent = `${meta.label} Grade`;
+
+  // Action buttons
+  const actions = document.createElement('div');
+  actions.className = 'card-actions';
+
+  if (!inParking && !compact) {
+    // Park button (only on board cards)
+    const parkBtn = document.createElement('button');
+    parkBtn.className = 'card-action-btn btn-park';
+    parkBtn.title = 'Send to Parking Lot';
+    parkBtn.textContent = '🅿';
+    parkBtn.addEventListener('click', e => { e.stopPropagation(); parkClass(cls.id); });
+    actions.appendChild(parkBtn);
+  }
+
+  if (inParking) {
+    // Unpark button
+    const unParkBtn = document.createElement('button');
+    unParkBtn.className = 'card-action-btn btn-park';
+    unParkBtn.title = 'Return to board';
+    unParkBtn.textContent = '↩';
+    unParkBtn.addEventListener('click', e => { e.stopPropagation(); unparkClass(cls.id); });
+    actions.appendChild(unParkBtn);
+  }
+
+  if (!compact) {
+    // Duplicate
+    const dupBtn = document.createElement('button');
+    dupBtn.className = 'card-action-btn btn-duplicate';
+    dupBtn.title = 'Duplicate class';
+    dupBtn.textContent = '⊕';
+    dupBtn.addEventListener('click', e => { e.stopPropagation(); duplicateClass(cls.id); });
+    actions.appendChild(dupBtn);
+
+    // Delete
+    const delBtn = document.createElement('button');
+    delBtn.className = 'card-action-btn btn-delete';
+    delBtn.title = 'Delete class';
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (confirm(`Delete "${cls.subject}" (${meta.label} Grade)?`)) deleteClass(cls.id);
+    });
+    actions.appendChild(delBtn);
+  }
+
+  top.appendChild(sym);
+  top.appendChild(lbl);
+  top.appendChild(actions);
+
+  const subj = document.createElement('div');
+  subj.className = 'card-subject';
+  subj.textContent = cls.subject;
+
+  const tchr = document.createElement('div');
+  tchr.className = 'card-teacher';
+  tchr.textContent = cls.teacher;
+
+  card.appendChild(top);
+  card.appendChild(subj);
+  card.appendChild(tchr);
+
+  if (hasConflict) {
+    const warn = document.createElement('div');
+    warn.className = 'conflict-warning';
+    warn.textContent = '⚠ Teacher conflict this period';
+    card.appendChild(warn);
+  }
+
+  return card;
+}
+
+/* ─── Legend ─── */
+function buildLegend() {
+  const legend = document.getElementById('legend');
+  legend.innerHTML = '';
+  activeBoardGrades().forEach(g => {
+    const meta = GRADE_META[g];
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `<div class="legend-swatch" style="background:${meta.color};color:${meta.textColor}">${meta.symbol}</div>${meta.label}`;
+    legend.appendChild(item);
+  });
+  const bal = document.createElement('div');
+  bal.className = 'legend-item';
+  bal.style.cssText = 'background:#0f2318;border-color:#22c55e;color:#4ade80';
+  bal.innerHTML = `<div class="legend-swatch" style="background:#22c55e;color:#fff">✓</div>Balanced`;
+  legend.appendChild(bal);
+}
+
+/* ─── Storage panel ─── */
+function buildStoragePanel() {
+  const body = document.getElementById('storageBody');
+  body.innerHTML = '';
+  if (!storagePanelOpen) return;
+  let totalStored = 0;
+
+  ALL_GRADES.forEach(g => {
+    const meta         = GRADE_META[g];
+    const gradeClasses = classesByGrade(g).filter(c => !c.parked);
+    const isActive     = activeGradeSet.has(g);
+    const count        = gradeClasses.length;
+    if (!isActive) totalStored += count;
+
+    const row = document.createElement('div');
+    row.className = `grade-row ${isActive ? 'is-active' : count > 0 ? 'is-stored' : 'is-active'}`;
+
+    const rowHeader = document.createElement('div');
+    rowHeader.className = 'grade-row-header';
+
+    const checkWrap = document.createElement('label');
+    checkWrap.className = 'grade-checkbox-wrap';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = isActive;
+    cb.addEventListener('change', () => toggleGrade(g, cb.checked));
+    const swatch = document.createElement('div');
+    swatch.className = 'grade-row-swatch';
+    swatch.style.background = meta.color; swatch.style.color = meta.textColor;
+    swatch.textContent = meta.symbol;
+    const nameLbl = document.createElement('span');
+    nameLbl.className = 'grade-row-label';
+    nameLbl.textContent = `${meta.label} Grade`;
+    checkWrap.appendChild(cb); checkWrap.appendChild(swatch); checkWrap.appendChild(nameLbl);
+
+    const rowMeta = document.createElement('div');
+    rowMeta.className = 'grade-row-meta';
+    const countSpan = document.createElement('span');
+    countSpan.className = 'grade-class-count';
+    countSpan.textContent = count === 0 ? 'No classes yet'
+      : isActive ? `${count} on board` : `${count} in storage`;
+    const tag = document.createElement('span');
+    tag.className = 'grade-status-tag ' + (count === 0 ? 'tag-empty' : isActive ? 'tag-active' : 'tag-stored');
+    tag.textContent = count === 0 ? 'Empty' : isActive ? '● On Board' : '▣ Stored';
+    rowMeta.appendChild(countSpan); rowMeta.appendChild(tag);
+
+    rowHeader.appendChild(checkWrap); rowHeader.appendChild(rowMeta);
+    row.appendChild(rowHeader);
+
+    body.appendChild(row);
+  });
+
+  const badge = document.getElementById('storedBadge');
+  badge.textContent = totalStored > 0 ? `${totalStored} hidden` : 'all visible';
+  badge.className = 'stored-count-badge' + (totalStored > 0 ? ' has-stored' : '');
+}
+
+/* ─── Parking lot panel ─── */
+function buildParkingPanel() {
+  const zone   = document.getElementById('parkingZone');
+  const badge  = document.getElementById('parkingBadge');
+  const parked = parkedClasses();
+  badge.textContent = `${parked.length} parked`;
+
+  zone.innerHTML = '';
+  if (!parkingPanelOpen) return;
+
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', e => { if (!zone.contains(e.relatedTarget)) zone.classList.remove('drag-over'); });
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    if (draggedId !== null) {
+      const cls = classes.find(c => c.id === draggedId);
+      if (cls) { cls.parked = true; render(); }
+      draggedId = null;
+    }
+  });
+
+  if (parked.length === 0) {
+    const hint = document.createElement('div');
+    hint.className = 'parking-empty-hint';
+    hint.textContent = 'Drag classes here to set them aside — grade-agnostic, no balancing applied';
+    zone.appendChild(hint);
+  } else {
+    parked.forEach(cls => {
+      zone.appendChild(buildCard(cls, { compact: true, inParking: true }));
+    });
+  }
+}
+
+/* ─── Main board render ─── */
+function renderBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  let balancedPeriods = 0, totalConflicts = 0;
+  const grades = activeBoardGrades();
+
+  // ── Hold column (left of Period 1) ──────────────────────────────────────
+  const parkedList = parkedClasses();
+  const holdCol = document.createElement('div');
+  holdCol.className = 'hold-col';
+
+  const holdHeader = document.createElement('div');
+  holdHeader.className = 'hold-col-header';
+  const holdLabel = document.createElement('span');
+  holdLabel.className = 'hold-col-label';
+  holdLabel.textContent = '🅿 Hold';
+  const holdMeta = document.createElement('div');
+  holdMeta.className = 'hold-col-meta';
+  const holdCount = document.createElement('span');
+  holdCount.className = 'hold-col-count';
+  holdCount.textContent = parkedList.length > 0 ? `${parkedList.length} class${parkedList.length === 1 ? '' : 'es'}` : 'empty';
+  holdMeta.appendChild(holdCount);
+  if (parkedList.length > 0) {
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'hold-clear-btn';
+    clearBtn.textContent = 'Clear';
+    clearBtn.addEventListener('click', () => {
+      if (confirm('Return all held classes to their assigned periods?')) {
+        classes.forEach(c => { c.parked = false; });
+        render();
+      }
+    });
+    holdMeta.appendChild(clearBtn);
+  }
+  holdHeader.appendChild(holdLabel);
+  holdHeader.appendChild(holdMeta);
+
+  const holdCards = document.createElement('div');
+  holdCards.className = 'hold-col-cards';
+
+  holdCol.addEventListener('dragover', e => { e.preventDefault(); holdCol.classList.add('drag-over'); });
+  holdCol.addEventListener('dragleave', e => { if (!holdCol.contains(e.relatedTarget)) holdCol.classList.remove('drag-over'); });
+  holdCol.addEventListener('drop', e => {
+    e.preventDefault();
+    holdCol.classList.remove('drag-over');
+    if (draggedId !== null) {
+      const cls = classes.find(c => c.id === draggedId);
+      if (cls) { cls.parked = true; render(); }
+      draggedId = null;
+    }
+  });
+
+  if (parkedList.length === 0) {
+    const hint = document.createElement('div');
+    hint.className = 'hold-col-empty';
+    hint.textContent = 'Drag any class here to set it aside';
+    holdCards.appendChild(hint);
+  } else {
+    parkedList.forEach(cls => holdCards.appendChild(buildCard(cls, { compact: true, inParking: true })));
+  }
+
+  holdCol.appendChild(holdHeader);
+  holdCol.appendChild(holdCards);
+  board.appendChild(holdCol);
+  // ────────────────────────────────────────────────────────────────────────
+
+  for (let period = 1; period <= 8; period++) {
+    const special   = SPECIAL_PERIODS.has(period);
+    const pc        = boardByPeriod(period);
+    const balGrades = special ? new Set() : balancedGradesInPeriod(period);
+    const fullyBal  = !special && isPeriodFullyBalanced(period);
+    const conflicts = teacherConflicts(period);
+    const hasConf   = Object.keys(conflicts).length > 0;
+    if (fullyBal) balancedPeriods++;
+    if (hasConf)  totalConflicts += Object.keys(conflicts).length / 2;
+
+    const col = document.createElement('div');
+    col.className = 'period-col'
+      + (special  ? ' special-period' : '')
+      + (fullyBal ? ' balanced'       : '')
+      + (hasConf  ? ' conflict'       : '');
+    col.dataset.period = period;
+
+    col.addEventListener('dragover', e => {
+      e.preventDefault();
+      const blocked = draggedId !== null && (() => {
+        const dc = classes.find(c => c.id === draggedId);
+        return dc && boardByPeriod(period).some(c => c.teacher === dc.teacher && c.id !== draggedId);
+      })();
+      if (blocked) {
+        col.classList.remove('drag-over');
+        col.classList.add('drag-blocked');
+        e.dataTransfer.dropEffect = 'none';
+      } else {
+        col.classList.remove('drag-blocked');
+        col.classList.add('drag-over');
+        e.dataTransfer.dropEffect = 'move';
+      }
+    });
+    col.addEventListener('dragleave', e => {
+      if (!col.contains(e.relatedTarget)) {
+        col.classList.remove('drag-over');
+        col.classList.remove('drag-blocked');
+      }
+    });
+    col.addEventListener('drop', e => {
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      col.classList.remove('drag-blocked');
+      if (draggedId !== null) {
+        const cls = classes.find(c => c.id === draggedId);
+        if (cls) {
+          const conflict = boardByPeriod(period).some(c => c.teacher === cls.teacher && c.id !== draggedId);
+          if (conflict) {
+            // Reject the drop — flash the column red and snap the card back
+            col.classList.add('reject-flash');
+            setTimeout(() => col.classList.remove('reject-flash'), 450);
+            draggedId = null;
+            return;
+          }
+          if (!activeGradeSet.has(cls.grade)) activeGradeSet.add(cls.grade);
+          cls.parked = false;
+          cls.period = period;
+          render();
+        }
+        draggedId = null;
+      }
+    });
+
+    /* Header */
+    const header = document.createElement('div');
+    header.className = 'period-header';
+    const headerTop = document.createElement('div');
+    headerTop.className = 'period-header-top';
+    const lbl = document.createElement('div');
+    lbl.className = 'period-label';
+    lbl.textContent = `Period ${period}`;
+    const badge = document.createElement('span');
+    if (special) {
+      badge.className = 'period-status status-special';
+      badge.textContent = 'Special';
+    } else {
+      const bc = balGrades.size, gc = grades.length;
+      badge.className = 'period-status ' + (hasConf ? 'status-conflict' : fullyBal ? 'status-balanced' : bc > 0 ? 'status-partial' : 'status-unbalanced');
+      badge.textContent = hasConf ? '⚠ Conflict' : fullyBal ? '✓ Balanced' : bc > 0 ? `${bc}/${gc} Bal` : 'Unbalanced';
+    }
+    headerTop.appendChild(lbl); headerTop.appendChild(badge);
+    header.appendChild(headerTop);
+
+    if (!special && grades.length > 0) {
+      const pills = document.createElement('div');
+      pills.className = 'grade-pills';
+      grades.forEach(g => {
+        const cnt = pc.filter(c => c.grade === g).length;
+        const meta = GRADE_META[g];
+        const isBal = balGrades.has(g);
+        const p2 = document.createElement('span');
+        p2.className = `grade-pill ${isBal ? 'gpill-balanced' : `gpill-${g}`}`;
+        p2.title = `${meta.label} — ${cnt}${isBal ? ' ✓' : ''}`;
+        p2.textContent = `${meta.symbol}${cnt}${isBal ? '✓' : ''}`;
+        pills.appendChild(p2);
+      });
+      header.appendChild(pills);
+    }
+    col.appendChild(header);
+
+    const area = document.createElement('div');
+    area.className = 'cards-area';
+    if (pc.length === 0) {
+      const hint = document.createElement('div');
+      hint.className = 'empty-hint';
+      hint.textContent = 'Drop a class here';
+      area.appendChild(hint);
+    }
+    pc.forEach(cls => {
+      const isCardBal = !special && balGrades.has(cls.grade);
+      area.appendChild(buildCard(cls, { isBalanced: isCardBal, hasConflict: !!conflicts[cls.id] }));
+    });
+    col.appendChild(area);
+    board.appendChild(col);
+  }
+
+  /* Stats */
+  const onBoard = boardClasses().length;
+  document.getElementById('totalClasses').textContent = onBoard;
+  document.getElementById('storedCount').textContent  = storedClasses().length;
+  document.getElementById('parkedCount').textContent  = parkedClasses().length;
+
+  const breakdown = document.getElementById('gradeBreakdown');
+  breakdown.innerHTML = grades.map(g => {
+    const meta = GRADE_META[g];
+    const cnt  = classesByGrade(g).filter(c => !c.parked).length;
+    return `<span style="color:${meta.color}">${meta.symbol} ${meta.label}: <strong style="color:#e0e0f0">${cnt}</strong></span>`;
+  }).join(' &nbsp;|&nbsp; ');
+
+  document.getElementById('balancedCount').textContent = balancedPeriods;
+  const ci = document.getElementById('conflictInfo');
+  if (totalConflicts > 0) {
+    ci.style.display = 'inline';
+    document.getElementById('conflictCount').textContent = Math.round(totalConflicts);
+  } else {
+    ci.style.display = 'none';
+  }
+}
+
+/* ─── Full render ─── */
+function render() {
+  buildLegend();
+  buildStoragePanel();
+  renderBoard();
+}
+
+render();
+</script>
+</body>
+</html>
