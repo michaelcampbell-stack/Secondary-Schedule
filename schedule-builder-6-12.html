@@ -1,0 +1,2531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schedule Pathways</title>
+<style>
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f4f0;
+    --text-primary: #1a1918;
+    --text-secondary: #5f5e5a;
+    --text-tertiary: #888780;
+    --border-primary: rgba(0,0,0,0.4);
+    --border-secondary: rgba(0,0,0,0.3);
+    --border-tertiary: rgba(0,0,0,0.15);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-primary: #1e1d1b;
+      --bg-secondary: #2a2926;
+      --text-primary: #f0ede8;
+      --text-secondary: #a09e99;
+      --text-tertiary: #666460;
+      --border-primary: rgba(255,255,255,0.4);
+      --border-secondary: rgba(255,255,255,0.25);
+      --border-tertiary: rgba(255,255,255,0.12);
+    }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 28px 20px;
+  }
+
+  .container {
+    max-width: 1320px;
+    margin: 0 auto;
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    border: 0.5px solid var(--border-tertiary);
+    padding: 24px 24px 32px;
+  }
+
+  h1 { font-size: 18px; font-weight: 500; color: var(--text-primary); margin-bottom: 3px; }
+  .subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 18px; }
+
+  /* ── Grade tabs ── */
+  .grade-tabs {
+    display: flex;
+    gap: 3px;
+    margin-bottom: 0;
+    border-bottom: 0.5px solid var(--border-tertiary);
+    padding-bottom: 0;
+    margin-bottom: -1px;
+  }
+  .gtab {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 13px;
+    border-radius: 6px 6px 0 0;
+    border: 0.5px solid transparent;
+    border-bottom: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    background: transparent;
+    position: relative;
+    bottom: -1px;
+    white-space: nowrap;
+  }
+  .gtab:hover { color: var(--text-primary); }
+  .gtab.active {
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border-color: var(--border-tertiary);
+  }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    margin-bottom: 12px;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 5px; flex: 1; }
+  .conflict-note {
+    font-size: 11px;
+    color: #A32D2D;
+    background: #FCEBEB;
+    border-radius: 4px;
+    padding: 3px 8px;
+    display: none;
+  }
+  @media (prefers-color-scheme: dark) {
+    .conflict-note { color: #F7C1C1; background: #501313; }
+  }
+  .reset-btn {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 0.5px solid var(--border-secondary);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .reset-btn:hover { background: var(--bg-secondary); }
+
+  /* ── Schedule grid ── */
+  .sg-wrap { overflow-x: auto; padding-bottom: 4px; }
+  .sg {
+    display: grid;
+    grid-template-columns: 80px repeat(8, minmax(110px, 1fr));
+    gap: 5px;
+    margin-bottom: 20px;
+    min-width: 980px;
+  }
+
+  .sc {
+    border: 1.5px dashed var(--border-secondary);
+    border-radius: var(--radius-md);
+    padding: 6px;
+    min-height: 150px;
+    transition: border-color .1s, background .1s;
+  }
+  .sc.over    { border-style: solid; border-color: #378ADD; background: #E6F1FB; }
+  .sc.blocked { border-style: solid; border-color: #E24B4A; background: #FCEBEB; }
+  @media (prefers-color-scheme: dark) {
+    .sc.over    { background: #042C53; }
+    .sc.blocked { background: #501313; }
+  }
+
+  .sh {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    text-align: center;
+    padding-bottom: 5px;
+    border-bottom: 0.5px solid var(--border-tertiary);
+    margin-bottom: 5px;
+  }
+  .sh.sh-toggleable {
+    cursor: pointer;
+    user-select: none;
+  }
+  .sh.sh-toggleable:hover { color: var(--text-primary); }
+  .sh.sh-off {
+    opacity: .35;
+    text-decoration: line-through;
+  }
+  .sc.sc-inactive {
+    background: repeating-linear-gradient(
+      135deg,
+      transparent,
+      transparent 6px,
+      rgba(0,0,0,.03) 6px,
+      rgba(0,0,0,.03) 12px
+    );
+    border-style: dashed;
+    border-color: var(--border-tertiary);
+  }
+  @media (prefers-color-scheme: dark) {
+    .sc.sc-inactive {
+      background: repeating-linear-gradient(
+        135deg,
+        transparent,
+        transparent 6px,
+        rgba(255,255,255,.03) 6px,
+        rgba(255,255,255,.03) 12px
+      );
+    }
+  }
+
+  .cc {
+    background: var(--bg-primary);
+    border: 0.5px solid var(--border-secondary);
+    border-radius: 5px;
+    padding: 4px 5px;
+    margin-bottom: 3px;
+    cursor: grab;
+    font-size: 10px;
+    user-select: none;
+  }
+  .cc:hover { border-color: var(--border-primary); }
+  .cc.drag  { opacity: .25; }
+  .cn { font-weight: 500; color: var(--text-primary); line-height: 1.3; }
+  .ct { color: var(--text-tertiary); font-size: 9px; margin-top: 1px; }
+  .ck {
+    display: inline-block;
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-top: 2px;
+  }
+  /* Legend chips are clickable toggles */
+  .legend .ck {
+    cursor: pointer;
+    user-select: none;
+    transition: opacity .15s;
+  }
+  .legend .ck.ck-off {
+    opacity: .35;
+    text-decoration: line-through;
+  }
+  .legend .ck::after {
+    content: ' ✓';
+    font-size: 8px;
+    opacity: .6;
+  }
+  .legend .ck.ck-off::after {
+    content: '';
+  }
+
+  /* Subject colors */
+  .k-math     { background: #E6F1FB; color: #185FA5; }
+  .k-english  { background: #EAF3DE; color: #3B6D11; }
+  .k-science  { background: #FAEEDA; color: #854F0B; }
+  .k-bible    { background: #EEEDFE; color: #3C3489; }
+  .k-gov      { background: #FAECE7; color: #712B13; }
+  .k-history  { background: #F3EDE5; color: #6B3E1A; }
+  .k-spanish  { background: #E0F5F5; color: #0E6B6B; }
+  .k-grammar  { background: #F0F7E0; color: #4A7A00; }
+  .k-reading  { background: #E0F0E8; color: #1E5E30; }
+  .k-elective { background: #EFEFEF; color: #555555; }
+  @media (prefers-color-scheme: dark) {
+    .k-math     { background: #042C53; color: #B5D4F4; }
+    .k-english  { background: #173404; color: #C0DD97; }
+    .k-science  { background: #412402; color: #FAC775; }
+    .k-bible    { background: #26215C; color: #CECBF6; }
+    .k-gov      { background: #4A1B0C; color: #F5C4B3; }
+    .k-history  { background: #3D2510; color: #E0BA98; }
+    .k-spanish  { background: #003838; color: #7FD4D4; }
+    .k-grammar  { background: #283B00; color: #C5E07A; }
+    .k-reading  { background: #0A3318; color: #7EC9A0; }
+    .k-elective { background: #2A2926; color: #999793; }
+  }
+
+  .pool-hint {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-style: italic;
+    padding: 4px 2px;
+    line-height: 1.4;
+  }
+
+  /* ── Pathway panel ── */
+  .pathway-panel { border-top: 0.5px solid var(--border-tertiary); padding-top: 16px; }
+  .pcount-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; }
+  .pcount { font-size: 36px; font-weight: 500; color: var(--text-primary); line-height: 1; }
+  .pcount-label { font-size: 13px; color: var(--text-secondary); }
+
+  .ptbl-wrap { overflow-x: auto; }
+  .ptbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    min-width: 400px;
+  }
+  .ptbl th {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: 5px 8px;
+    border-bottom: 0.5px solid var(--border-secondary);
+    text-align: left;
+    white-space: nowrap;
+  }
+  .ptbl td {
+    padding: 5px 8px;
+    border-bottom: 0.5px solid var(--border-tertiary);
+    vertical-align: middle;
+  }
+  .ptbl tr:last-child td { border-bottom: none; }
+  .ptbl tr:hover td { background: var(--bg-secondary); }
+  .period-badge {
+    font-size: 9px;
+    color: var(--text-tertiary);
+    margin-left: 4px;
+  }
+
+  .empty-msg { font-size: 13px; color: var(--text-tertiary); padding: 6px 0; }
+
+  /* ── Saved designs ── */
+  .saves-panel {
+    border-top: 0.5px solid var(--border-tertiary);
+    padding-top: 16px;
+    margin-top: 16px;
+  }
+  .saves-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .saves-title { font-size: 13px; font-weight: 500; color: var(--text-primary); flex: 1; }
+  .save-name-row {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .save-name-field {
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border: 0.5px solid var(--border-primary);
+    border-radius: 6px;
+    padding: 4px 9px;
+    outline: none;
+    width: 200px;
+  }
+  .design-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 0;
+    border-bottom: 0.5px solid var(--border-tertiary);
+  }
+  .design-item:last-child { border-bottom: none; }
+  .design-item-info { flex: 1; }
+  .design-item-name { font-size: 12px; font-weight: 500; color: var(--text-primary); }
+  .design-item-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; }
+  .design-item-actions { display: flex; gap: 5px; }
+  .del-btn {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 0.5px solid var(--border-secondary);
+    background: transparent;
+    color: #A32D2D;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .del-btn:hover { background: #FCEBEB; }
+  @media (prefers-color-scheme: dark) {
+    .del-btn { color: #F7C1C1; }
+    .del-btn:hover { background: #501313; }
+  }
+
+  /* ── Inline editing ── */
+  .cn, .ct { border-radius: 2px; transition: background .1s; }
+  .cn:hover, .ct:hover { background: var(--bg-secondary); cursor: context-menu; }
+  .edit-input {
+    width: 100%;
+    font-size: inherit;
+    font-family: inherit;
+    font-weight: inherit;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 3px;
+    padding: 1px 4px;
+    outline: none;
+    box-sizing: border-box;
+  }
+  @media print { .cn:hover, .ct:hover { background: transparent; } }
+
+  .export-btn {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 0.5px solid var(--border-secondary);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .export-btn:hover { background: var(--bg-secondary); }
+
+  /* ── Context menu ── */
+  #ctx-menu {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    background: var(--bg-primary);
+    border: 0.5px solid var(--border-secondary);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.15);
+    padding: 4px;
+    min-width: 160px;
+  }
+  .ctx-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--text-primary);
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  .ctx-item:hover { background: var(--bg-secondary); }
+  .ctx-sep { margin: 3px 0; border: none; border-top: 0.5px solid var(--border-tertiary); }
+  .ctx-danger { color: #A32D2D; }
+  @media (prefers-color-scheme: dark) { .ctx-danger { color: #F7C1C1; } }
+  .solo-badge {
+    display: inline-block;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #fff;
+    background: #7B5EA7;
+    border-radius: 3px;
+    padding: 1px 4px;
+    margin-left: 5px;
+    vertical-align: middle;
+    line-height: 1.5;
+  }
+  @media (prefers-color-scheme: dark) { .solo-badge { background: #9B7EC8; } }
+  .ce-badge {
+    display: inline-block;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: #fff;
+    background: #2E7D8A;
+    border-radius: 3px;
+    padding: 1px 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+    line-height: 1.5;
+  }
+  @media (prefers-color-scheme: dark) { .ce-badge { background: #3E9CAB; } }
+  .bind-badge {
+    display: inline-block;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: #fff;
+    background: #A05A00;
+    border-radius: 3px;
+    padding: 1px 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+    line-height: 1.5;
+    cursor: default;
+  }
+  @media (prefers-color-scheme: dark) { .bind-badge { background: #C87820; } }
+  /* Double-block link modal */
+  #link-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.35); z-index: 999;
+    align-items: center; justify-content: center;
+  }
+  #link-overlay.open { display: flex; }
+  #link-modal {
+    background: var(--bg-primary);
+    border-radius: 12px;
+    border: 0.5px solid var(--border-tertiary);
+    padding: 20px 22px 18px;
+    width: 280px; max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0,0,0,.2);
+  }
+  .link-sub { font-size: 11px; color: var(--text-secondary); margin: 0 0 4px; }
+  .link-course-name { font-size: 12px; font-weight: 500; color: var(--text-primary); margin: 0 0 10px; }
+  .link-course-list {
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: 220px; overflow-y: auto; margin-bottom: 4px;
+  }
+  .link-course-label { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-primary); cursor: pointer; }
+  .link-course-rb { width: 14px; height: 14px; accent-color: #1A7ED4; cursor: pointer; }
+  .link-course-teacher { font-size: 10px; color: var(--text-tertiary); margin-left: 2px; }
+  /* Bind modal */
+  #bind-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.35); z-index: 999;
+    align-items: center; justify-content: center;
+  }
+  #bind-overlay.open { display: flex; }
+  #bind-modal {
+    background: var(--bg-primary);
+    border-radius: 12px;
+    border: 0.5px solid var(--border-tertiary);
+    padding: 20px 22px 18px;
+    width: 280px; max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0,0,0,.2);
+  }
+  .bind-sub { font-size: 11px; color: var(--text-secondary); margin: 0 0 4px; }
+  .bind-course-name { font-size: 12px; font-weight: 500; color: var(--text-primary); margin: 0 0 10px; }
+  .bind-course-list {
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: 220px; overflow-y: auto; margin-bottom: 4px;
+  }
+  .bind-course-label { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-primary); cursor: pointer; }
+  .bind-course-cb { width: 14px; height: 14px; accent-color: #A05A00; cursor: pointer; }
+  .bind-course-teacher { font-size: 10px; color: var(--text-tertiary); margin-left: 2px; }
+  /* Cross-enroll modal */
+  #ce-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.35); z-index: 999;
+    align-items: center; justify-content: center;
+  }
+  #ce-overlay.open { display: flex; }
+  #ce-modal {
+    background: var(--bg-primary);
+    border-radius: 12px;
+    border: 0.5px solid var(--border-tertiary);
+    padding: 20px 22px 18px;
+    width: 260px; max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0,0,0,.2);
+  }
+  .ce-sub { font-size: 11px; color: var(--text-secondary); margin: 0 0 4px; }
+  .ce-course-name { font-size: 12px; font-weight: 500; color: var(--text-primary); margin: 0 0 12px; }
+  .ce-grade-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+  .ce-grade-label { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-primary); cursor: pointer; }
+  .ce-grade-cb { width: 14px; height: 14px; accent-color: #2E7D8A; cursor: pointer; }
+
+  /* ── New class modal ── */
+  #new-class-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.35);
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+  }
+  #new-class-overlay.open { display: flex; }
+  #new-class-modal {
+    background: var(--bg-primary);
+    border-radius: 12px;
+    border: 0.5px solid var(--border-tertiary);
+    padding: 20px 22px 18px;
+    width: 300px;
+    max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0,0,0,.2);
+  }
+  .modal-title { font-size: 14px; font-weight: 500; color: var(--text-primary); margin-bottom: 14px; }
+  .modal-field { margin-bottom: 10px; }
+  .modal-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 3px; display: block; }
+  .modal-input, .modal-select {
+    width: 100%;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border: 0.5px solid var(--border-primary);
+    border-radius: 6px;
+    padding: 5px 9px;
+    outline: none;
+    box-sizing: border-box;
+  }
+  .modal-select { appearance: auto; }
+  .modal-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 14px; }
+
+  /* ── Teacher availability panel ── */
+  .avail-section {
+    border: 0.5px solid var(--border-tertiary);
+    border-radius: var(--radius-lg);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .avail-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    background: var(--bg-secondary);
+    border-bottom: 0.5px solid var(--border-tertiary);
+  }
+  .avail-title { font-size: 12px; font-weight: 500; color: var(--text-primary); flex: 1; }
+  .avail-body  { padding: 10px 12px; overflow-x: auto; }
+  .avail-tbl   { border-collapse: collapse; font-size: 11px; min-width: 480px; }
+  .avail-tbl th {
+    font-size: 9px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--text-tertiary);
+    padding: 3px 10px; text-align: center; white-space: nowrap;
+  }
+  .avail-tbl th:first-child { text-align: left; min-width: 90px; }
+  .avail-tbl td { padding: 4px 10px; text-align: center; vertical-align: middle; }
+  .avail-teacher {
+    text-align: left !important;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    padding-right: 16px !important;
+  }
+  .avail-cb { cursor: pointer; width: 14px; height: 14px; accent-color: #1A7ED4; }
+  .avail-fixed-cell {
+    font-size: 8px; font-weight: 600; letter-spacing: .04em;
+    color: #fff; background: #2E6B47; border-radius: 3px;
+    padding: 2px 5px; display: inline-block; white-space: nowrap;
+  }
+  .avail-fixed-cell.studyhall  { background: #4B5F7C; }
+  .avail-fixed-cell.electives  { background: #7A5C2E; }
+  .avail-cross-cell {
+    font-size: 9px; font-weight: 600; color: #A32D2D;
+    background: #FCEBEB; border-radius: 3px; padding: 1px 4px;
+    display: inline-block;
+  }
+  @media (prefers-color-scheme: dark) {
+    .avail-cross-cell { color: #F7C1C1; background: #501313; }
+  }
+  .avail-all-btn { font-size: 10px; padding: 2px 8px; white-space: nowrap; }
+  #avail-toggle-btn { font-size: 10px; padding: 3px 10px; }
+
+  /* ── Fixed / reserved period cards ── */
+  .sc-fixed {
+    background: rgba(0,0,0,.025);
+    border-style: solid;
+    border-color: var(--border-tertiary);
+  }
+  @media (prefers-color-scheme: dark) {
+    .sc-fixed { background: rgba(255,255,255,.025); }
+  }
+  .cc-fixed {
+    border-radius: 5px;
+    padding: 4px 5px;
+    margin-bottom: 3px;
+    cursor: default;
+    user-select: none;
+    font-size: 10px;
+  }
+  .cc-fixed-athletics {
+    background: #2E6B47;
+    border: 0.5px solid #1F5235;
+  }
+  .cc-fixed-studyhall {
+    background: #4B5F7C;
+    border: 0.5px solid #374A63;
+  }
+  .cc-fixed-electives {
+    background: #7A5C2E;
+    border: 0.5px solid #5E4520;
+  }
+  .fixed-name  { font-weight: 500; color: #fff; line-height: 1.3; }
+  .fixed-badge {
+    display: inline-block;
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-top: 2px;
+    background: rgba(255,255,255,.2);
+    color: #fff;
+  }
+
+  /* ── Conference card ── */
+  .cc-conf {
+    background: #1A7ED4;
+    border: 0.5px solid #1266B5;
+    border-radius: 5px;
+    padding: 4px 5px;
+    margin-bottom: 3px;
+    cursor: grab;
+    user-select: none;
+    font-size: 10px;
+  }
+  .cc-conf:hover { border-color: #0D4F9A; }
+  .cc-conf.drag  { opacity: .25; }
+  .conf-name { font-weight: 500; color: #fff; line-height: 1.3; }
+  .conf-badge {
+    display: inline-block;
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-top: 2px;
+    background: rgba(255,255,255,.22);
+    color: #fff;
+    letter-spacing: .02em;
+  }
+
+  /* ── Optimizer result note ── */
+  .opt-note {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: none;
+    background: #E6F5EE;
+    color: #1A6B3C;
+    border: 0.5px solid rgba(26,107,60,.25);
+  }
+  @media (prefers-color-scheme: dark) {
+    .opt-note { background: #0A3320; color: #7EC9A0; }
+  }
+
+  /* ── Print styles ── */
+  .print-header { display: none; }
+
+  @media print {
+    body { background: white !important; padding: 4px 8px; }
+    .container { border: none; border-radius: 0; padding: 0; max-width: 100%; box-shadow: none; }
+    .grade-tabs, .toolbar, #pool-col { display: none !important; }
+    .print-header { display: block; font-size: 15px; font-weight: 500; margin-bottom: 10px; }
+    .print-header span { font-size: 12px; font-weight: 400; color: #666; margin-left: 8px; }
+    .sg-wrap { overflow: visible; }
+    .sg { min-width: unset !important; grid-template-columns: repeat(8, 1fr) !important; gap: 4px; margin-bottom: 14px; }
+    .sc { min-height: 60px; page-break-inside: avoid; }
+    .cc { cursor: default; }
+    .pathway-panel { border-top: 0.5px solid #ccc; }
+    .ptbl-wrap { overflow: visible; }
+    .ptbl { min-width: unset; }
+    h1, .subtitle { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>Schedule Pathways</h1>
+  <p class="subtitle">Select a grade, then drag course cards from the pool into period columns. Pathways update live as you build.</p>
+
+  <div class="print-header" id="printHeader"></div>
+
+  <div class="grade-tabs" id="gradeTabs"></div>
+
+  <div class="toolbar">
+    <div class="legend" id="legend"></div>
+    <span class="conflict-note" id="cnote">Same teacher already in that period</span>
+    <button class="reset-btn" onclick="openNewClass()">+ New class</button>
+    <button class="reset-btn" onclick="openConfPicker()" style="color:#1A7ED4;border-color:#1A7ED4;">+ Conference</button>
+    <button class="reset-btn" onclick="optimizeGrade()" id="optBtn">✦ Optimize</button>
+    <span class="opt-note" id="optNote"></span>
+    <button class="reset-btn" onclick="resetGrade()">Reset grade</button>
+    <button class="export-btn" onclick="exportPDF()">Export PDF</button>
+  </div>
+
+  <div class="avail-section" id="availSection">
+    <div class="avail-header">
+      <span class="avail-title">Teacher Availability</span>
+      <button class="reset-btn avail-all-btn" onclick="checkAllAvail()">Select all</button>
+      <button class="reset-btn avail-all-btn" onclick="clearAllAvail()">Clear all</button>
+      <button class="reset-btn" id="avail-toggle-btn" onclick="toggleAvailSection()">Hide ▲</button>
+    </div>
+    <div class="avail-body" id="availBody"></div>
+  </div>
+
+  <div class="sg-wrap">
+    <div class="sg" id="sg"></div>
+  </div>
+
+  <div class="pathway-panel">
+    <div class="pcount-row">
+      <span class="pcount" id="pn">0</span>
+      <span class="pcount-label" id="plabel">valid pathways</span>
+    </div>
+    <div class="ptbl-wrap">
+      <div id="pl"></div>
+    </div>
+  </div>
+
+  <div class="saves-panel">
+    <div class="saves-header">
+      <span class="saves-title">Saved Designs</span>
+      <div style="display:flex;gap:6px;">
+        <button class="reset-btn" id="saveGradeBtn" onclick="showSaveInput('grade')">Save this grade</button>
+        <button class="reset-btn" onclick="showSaveInput('all')">Save all grades</button>
+      </div>
+    </div>
+    <div class="save-name-row" id="saveNameRow">
+      <input id="saveNameField" class="save-name-field" type="text" placeholder="Name this design…" maxlength="60">
+      <button class="reset-btn" onclick="confirmSave()">Save</button>
+      <button class="reset-btn" onclick="hideSaveInput()">Cancel</button>
+    </div>
+    <div id="designList"></div>
+  </div>
+
+</div>
+
+<!-- Context menu -->
+<div id="ctx-menu">
+  <button class="ctx-item" id="ctx-edit-name">Edit name</button>
+  <button class="ctx-item" id="ctx-edit-teacher">Edit teacher</button>
+  <hr class="ctx-sep">
+  <button class="ctx-item" id="ctx-solo">Mark as solo period</button>
+  <button class="ctx-item" id="ctx-ce">Cross-grade enrollment...</button>
+  <button class="ctx-item" id="ctx-bind">Bind to same period...</button>
+  <button class="ctx-item" id="ctx-link">Link as double-block...</button>
+  <hr class="ctx-sep ctx-sep2">
+  <button class="ctx-item ctx-danger" id="ctx-delete">Delete class</button>
+</div>
+
+<!-- New class modal -->
+<div id="new-class-overlay">
+  <div id="new-class-modal">
+    <div class="modal-title">New Class</div>
+    <div class="modal-field">
+      <label class="modal-label" for="nc-name">Course name</label>
+      <input id="nc-name" class="modal-input" type="text" placeholder="e.g. AP Chemistry" maxlength="60">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label" for="nc-teacher">Teacher</label>
+      <input id="nc-teacher" class="modal-input" type="text" placeholder="Last name" maxlength="40">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label" for="nc-grade">Grade level</label>
+      <select id="nc-grade" class="modal-select"></select>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label" for="nc-subject">Subject</label>
+      <select id="nc-subject" class="modal-select"></select>
+    </div>
+    <div class="modal-actions">
+      <button class="reset-btn" onclick="closeNewClass()">Cancel</button>
+      <button class="reset-btn" onclick="confirmNewClass()">Add class</button>
+    </div>
+  </div>
+</div>
+
+<!-- Double-block link modal -->
+<div id="link-overlay">
+  <div id="link-modal">
+    <div class="modal-title">Link as double-block</div>
+    <p class="link-sub">Require students to take both periods — link <strong id="link-course-name"></strong> with:</p>
+    <div class="link-course-list" id="link-course-list"></div>
+    <div class="modal-actions">
+      <button id="link-remove-btn" class="del-btn" onclick="removeUserLink()" style="margin-right:auto;display:none">Remove link</button>
+      <button class="reset-btn" onclick="closeLink()">Cancel</button>
+      <button class="primary-btn" onclick="saveLink()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bind to same period modal -->
+<div id="bind-overlay">
+  <div id="bind-modal">
+    <div class="modal-title">Bind to same period</div>
+    <p class="bind-sub">Always place in the same period as:</p>
+    <p class="bind-course-name" id="bind-course-name"></p>
+    <div class="bind-course-list" id="bind-course-list"></div>
+    <div class="modal-actions">
+      <button class="reset-btn" onclick="closeBind()">Cancel</button>
+      <button class="primary-btn" onclick="saveBind()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cross-grade enrollment modal -->
+<div id="ce-overlay">
+  <div id="ce-modal">
+    <div class="modal-title">Cross-grade enrollment</div>
+    <p class="ce-sub">Students from other grades can also enroll in:</p>
+    <p class="ce-course-name" id="ce-course-name"></p>
+    <div class="ce-grade-list" id="ce-grade-list"></div>
+    <div class="modal-actions">
+      <button class="reset-btn" onclick="closeCE()">Cancel</button>
+      <button class="primary-btn" onclick="saveCE()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Conference picker modal -->
+<div id="conf-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:999;align-items:center;justify-content:center;">
+  <div id="conf-modal" style="background:var(--bg-primary);border-radius:12px;border:0.5px solid var(--border-tertiary);padding:20px 22px 18px;width:280px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+    <div class="modal-title">Add Conference Period</div>
+    <div class="modal-field">
+      <label class="modal-label" for="cf-teacher">Teacher</label>
+      <select id="cf-teacher" class="modal-select"></select>
+    </div>
+    <div class="modal-actions">
+      <button class="reset-btn" onclick="closeConfPicker()">Cancel</button>
+      <button class="reset-btn" style="color:#1A7ED4;border-color:#1A7ED4;" onclick="confirmConf()">Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Course data ───────────────────────────────────────────────────────────────
+const COURSES = [
+  // ── Grade 6 ── (Math A and Math B each meet for two periods; §1/§2 are the same course)
+  {id:101, name:'Math A §1',         teacher:'Hinshaw',    subject:'math',    grade:6, linkedId:102},
+  {id:102, name:'Math A §2',         teacher:'Hinshaw',    subject:'math',    grade:6, linkedId:101},
+  {id:103, name:'Math B §1',         teacher:'Hinshaw',    subject:'math',    grade:6, linkedId:104},
+  {id:104, name:'Math B §2',         teacher:'Hinshaw',    subject:'math',    grade:6, linkedId:103},
+  {id:105, name:'Bible Boys',        teacher:'Cunningham', subject:'bible',   grade:6, groupId:'g6-bible', groupLabel:'Bible'},
+  {id:106, name:'Bible',             teacher:'Edwards',    subject:'bible',   grade:6, groupId:'g6-bible', groupLabel:'Bible'},
+  {id:107, name:'Science §1',        teacher:'Noble',      subject:'science', grade:6},
+  {id:108, name:'Science §2',        teacher:'Noble',      subject:'science', grade:6},
+  {id:109, name:'History §1',        teacher:'Noble',      subject:'history', grade:6},
+  {id:110, name:'History §2',        teacher:'Noble',      subject:'history', grade:6},
+  {id:111, name:'Grammar A',         teacher:'Edwards',    subject:'grammar', grade:6, pairedWith:113, groupLabel:'ELA A'},
+  {id:112, name:'Grammar B',         teacher:'Edwards',    subject:'grammar', grade:6, pairedWith:114, groupLabel:'ELA B'},
+  {id:113, name:'Reading A',         teacher:'Edwards',    subject:'reading', grade:6, pairedWith:111, isPairedSecondary:true, groupLabel:'ELA A'},
+  {id:114, name:'Reading B',         teacher:'Edwards',    subject:'reading', grade:6, pairedWith:112, isPairedSecondary:true, groupLabel:'ELA B'},
+
+  // ── Grade 7 ── (Pre-Algebra and Math A each meet for two periods; §1/§2 are the same course)
+  {id:201, name:'Pre-Algebra §1',    teacher:'Cunningham', subject:'math',    grade:7, linkedId:202},
+  {id:202, name:'Pre-Algebra §2',    teacher:'Cunningham', subject:'math',    grade:7, linkedId:201},
+  {id:203, name:'Math A §1',         teacher:'Hinshaw',    subject:'math',    grade:7, linkedId:204},
+  {id:204, name:'Math A §2',         teacher:'Hinshaw',    subject:'math',    grade:7, linkedId:203},
+  {id:205, name:'Bible §1',          teacher:'Wade',       subject:'bible',   grade:7},
+  {id:206, name:'Bible §2',          teacher:'Wade',       subject:'bible',   grade:7},
+  {id:207, name:'Life Science §1',   teacher:'Dennis',     subject:'science', grade:7},
+  {id:208, name:'Life Science §2',   teacher:'Dennis',     subject:'science', grade:7},
+  {id:209, name:'History §1',        teacher:'Richards',   subject:'history', grade:7},
+  {id:210, name:'History §2',        teacher:'Richards',   subject:'history', grade:7},
+  {id:211, name:'Grammar A',         teacher:'Polk',       subject:'grammar', grade:7, pairedWith:213, groupLabel:'ELA A'},
+  {id:212, name:'Grammar B',         teacher:'Polk',       subject:'grammar', grade:7, pairedWith:214, groupLabel:'ELA B'},
+  {id:213, name:'Reading A',         teacher:'Polk',       subject:'reading', grade:7, pairedWith:211, isPairedSecondary:true, groupLabel:'ELA A'},
+  {id:214, name:'Reading B',         teacher:'Polk',       subject:'reading', grade:7, pairedWith:212, isPairedSecondary:true, groupLabel:'ELA B'},
+
+  // ── Grade 8 ──
+  {id:301, name:'Pre-Algebra §1',    teacher:'Cunningham', subject:'math',    grade:8, linkedId:302},
+  {id:302, name:'Pre-Algebra §2',    teacher:'Cunningham', subject:'math',    grade:8, linkedId:301},
+  {id:303, name:'Algebra I',         teacher:'Chapman',    subject:'math',    grade:8, pairedWith:313},
+  {id:304, name:'Bible',             teacher:'Fowler',     subject:'bible',   grade:8},
+  {id:305, name:'Science §1',        teacher:'Noble',      subject:'science', grade:8},
+  {id:306, name:'Science §2',        teacher:'Noble',      subject:'science', grade:8},
+  {id:307, name:'History §1',        teacher:'McElvy',     subject:'history', grade:8},
+  {id:308, name:'History §2',        teacher:'McElvy',     subject:'history', grade:8},
+  {id:309, name:'English (H) §1',    teacher:'Fell',       subject:'english', grade:8, linkedId:310},
+  {id:310, name:'English (H) §2',    teacher:'Fell',       subject:'english', grade:8, linkedId:309},
+  {id:311, name:'English §1',        teacher:'Day',        subject:'english', grade:8, linkedId:312},
+  {id:312, name:'English §2',        teacher:'Day',        subject:'english', grade:8, linkedId:311},
+  {id:313, name:'Spanish I',         teacher:'Shearer',    subject:'spanish', grade:8, pairedWith:303, isPairedSecondary:true},
+
+  // ── Grade 9 ──
+  {id:401, name:'Algebra I',         teacher:'Chapman',    subject:'math',    grade:9},
+  {id:402, name:'Geometry (H)',      teacher:'Rogers',     subject:'math',    grade:9},
+  {id:403, name:'Bible §1',          teacher:'Wade',       subject:'bible',   grade:9},
+  {id:404, name:'Bible §2',          teacher:'Wade',       subject:'bible',   grade:9},
+  {id:405, name:'Biology §1',        teacher:'Dennis',     subject:'science', grade:9},
+  {id:406, name:'Biology §2',        teacher:'Dennis',     subject:'science', grade:9},
+  {id:407, name:'History §1',        teacher:'Richards',   subject:'history', grade:9},
+  {id:408, name:'History §2',        teacher:'Richards',   subject:'history', grade:9},
+  {id:409, name:'English (H)',       teacher:'Lynch',      subject:'english', grade:9},
+  {id:410, name:'English',           teacher:'Fell',       subject:'english', grade:9},
+  {id:411, name:'Spanish I',         teacher:'Shearer',    subject:'spanish', grade:9},
+  {id:412, name:'Spanish II',        teacher:'Shearer',    subject:'spanish', grade:9},
+
+  // ── Grade 10 ──
+  {id:501, name:'Geometry',          teacher:'Rogers',     subject:'math',    grade:10},
+  {id:502, name:'Algebra II (H)',    teacher:'Chapman',    subject:'math',    grade:10},
+  {id:503, name:'Bible §1',          teacher:'Fowler',     subject:'bible',   grade:10},
+  {id:504, name:'Bible §2',          teacher:'Fowler',     subject:'bible',   grade:10},
+  {id:505, name:'Chemistry §1',      teacher:'Einstein',   subject:'science', grade:10},
+  {id:506, name:'Chemistry §2',      teacher:'Einstein',   subject:'science', grade:10},
+  {id:507, name:'History §1',        teacher:'McElvy',     subject:'history', grade:10},
+  {id:508, name:'History §2',        teacher:'McElvy',     subject:'history', grade:10},
+  {id:509, name:'English (H)',       teacher:'Lynch',      subject:'english', grade:10},
+  {id:510, name:'English II',        teacher:'Lynch',      subject:'english', grade:10},
+  {id:511, name:'Speech',            teacher:'Day',        subject:'spanish', grade:10, groupId:'g10-speechtech', groupLabel:'Speech / Tech'},
+  {id:512, name:'Spanish II',        teacher:'Shearer',    subject:'spanish', grade:10},
+  {id:513, name:'Tech',              teacher:'Snow',       subject:'spanish', grade:10, groupId:'g10-speechtech', groupLabel:'Speech / Tech'},
+
+  // ── Grade 11 ──
+  {id:601, name:'Pre-Calculus (H)',  teacher:'Rogers',     subject:'math',    grade:11},
+  {id:602, name:'Algebra II',        teacher:'Chapman',    subject:'math',    grade:11},
+  {id:603, name:'Bible',             teacher:'Wade',       subject:'bible',   grade:11},
+  {id:604, name:'Physics §1',        teacher:'Einstein',   subject:'science', grade:11},
+  {id:605, name:'Physics §2',        teacher:'Einstein',   subject:'science', grade:11},
+  {id:606, name:'History',           teacher:'McElvy',     subject:'history', grade:11},
+  {id:607, name:'DE History',        teacher:'Cowan',      subject:'history', grade:11},
+  {id:608, name:'English',           teacher:'Fell',       subject:'english', grade:11},
+  {id:609, name:'DE English 1301',   teacher:'Fell',       subject:'english', grade:11},
+  {id:610, name:'Spanish III',       teacher:'Shearer',    subject:'spanish', grade:11},
+  {id:611, name:'College Prep',      teacher:'Harper',     subject:'elective',grade:11},
+
+  // ── Grade 12 ──
+  {id:701, name:'DE College Math / Statistics', teacher:'Moe',    subject:'math',    grade:12},
+  {id:702, name:'Pre-Calculus',      teacher:'Rogers',     subject:'math',    grade:12},
+  {id:703, name:'Bible §1',          teacher:'Fowler',     subject:'bible',   grade:12},
+  {id:704, name:'Bible §2',          teacher:'Fowler',     subject:'bible',   grade:12},
+  {id:705, name:'Forensics',         teacher:'Einstein',   subject:'science', grade:12},
+  {id:706, name:'DE Biology 1408',   teacher:'Dennis',     subject:'science', grade:12},
+  {id:707, name:'Government',        teacher:'Cowan',      subject:'gov',     grade:12},
+  {id:708, name:'DE Government',     teacher:'Cowan',      subject:'gov',     grade:12},
+  {id:709, name:'English IV',        teacher:'Lynch',      subject:'english', grade:12},
+  {id:710, name:'AP English IV',     teacher:'Lynch',      subject:'english', grade:12},
+];
+
+// ── Config ────────────────────────────────────────────────────────────────────
+const GRADES = [6, 7, 8, 9, 10, 11, 12];
+
+// Required subjects per grade — these define what must be covered for a valid pathway.
+// Electives are intentionally excluded from pathway requirements.
+const GRADE_SUBJECTS = {
+  6:  ['math', 'bible', 'science', 'history', 'grammar', 'reading'],
+  7:  ['math', 'bible', 'science', 'history', 'grammar', 'reading'],
+  8:  ['math', 'bible', 'science', 'history', 'english'],
+  9:  ['math', 'bible', 'science', 'history', 'english', 'spanish'],
+  10: ['math', 'bible', 'science', 'history', 'english', 'spanish'],
+  11: ['math', 'bible', 'science', 'history', 'english', 'spanish'],
+  12: ['math', 'bible', 'science', 'english', 'gov'],
+};
+
+const SUBJ_LABEL = {
+  math:'Math', english:'English', science:'Science', bible:'Bible',
+  gov:'Gov', history:'History', spanish:'Spanish',
+  grammar:'Grammar', reading:'Reading', elective:'Elective',
+};
+
+// gradeRequirements: which subjects count as required for a valid pathway, per grade.
+// Starts as a copy of GRADE_SUBJECTS but can be toggled by the user via the legend chips.
+const gradeRequirements = {};
+GRADES.forEach(g => { gradeRequirements[g] = new Set(GRADE_SUBJECTS[g]); });
+
+function toggleRequirement(subj) {
+  const req = gradeRequirements[currentGrade];
+  if (req.has(subj)) req.delete(subj); else req.add(subj);
+  render();
+}
+
+// gradeActivePeriods: which periods are available for scheduling, per grade.
+// All non-fixed periods start active. Toggling a period off moves placed courses to pool.
+// Populated after getFixed is defined below.
+const gradeActivePeriods = {};
+
+function togglePeriod(p) {
+  const active = gradeActivePeriods[currentGrade];
+  if (active.has(p)) {
+    active.delete(p);
+    // Return any courses placed in this period to the pool
+    const gs = gradeStates[currentGrade];
+    Object.keys(gs).forEach(id => { if (gs[id] === p) gs[id] = 0; });
+  } else {
+    active.add(p);
+  }
+  render();
+}
+
+// ── Fixed / reserved periods ──────────────────────────────────────────────────
+// Grades 6-8: period 8 is always Athletics.
+// Grades 9-12: period 1 has both Athletics and Study Hall (students choose one).
+const FIXED_PERIODS = {
+  6:  { 8: ['athletics'] },
+  7:  { 8: ['athletics'] },
+  8:  { 8: ['athletics'] },
+  9:  { 1: ['athletics', 'studyhall'], 8: ['electives'] },
+  10: { 1: ['athletics', 'studyhall'], 8: ['electives'] },
+  11: { 1: ['athletics', 'studyhall'], 8: ['electives'] },
+  12: { 1: ['athletics', 'studyhall'], 8: ['electives'] },
+};
+const FIXED_LABEL = { athletics: 'Athletics', studyhall: 'Study Hall', electives: 'Electives' };
+
+function getFixed(grade, period) {
+  return FIXED_PERIODS[grade]?.[period] || [];
+}
+
+// Now that getFixed is available, populate gradeActivePeriods with all non-fixed periods.
+GRADES.forEach(g => {
+  gradeActivePeriods[g] = new Set([1,2,3,4,5,6,7,8].filter(p => getFixed(g, p).length === 0));
+});
+
+const PERIODS = [
+  {p:0, label:'Pool'},
+  {p:1, label:'1st'}, {p:2, label:'2nd'}, {p:3, label:'3rd'}, {p:4, label:'4th'},
+  {p:5, label:'5th'}, {p:6, label:'6th'}, {p:7, label:'7th'}, {p:8, label:'8th'},
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+// gradeStates[grade][courseId] = period (0 = pool)
+const gradeStates = {};
+// soloCourses: course IDs designated as the only class in their period (exception to 2-per-period rule)
+const soloCourses = new Set();
+// crossEnroll: courseId → Set of grades whose students may also enroll in that course
+const crossEnroll = {};
+let ceCourse = null;  // course being edited in the cross-enroll modal
+// userLinkedMap: courseId → partnerId for user-created double-block pairs
+// (separate from hardcoded linkedId on COURSES objects)
+const userLinkedMap = {};
+let linkCourse = null;  // course being edited in the link modal
+// courseBindId: courseId → bind-group string (user-created same-period constraints)
+const courseBindId = {};
+let bindSeq = 0;      // sequence counter for generating unique bind group IDs
+let bindCourse = null; // course being edited in the bind modal
+GRADES.forEach(g => {
+  gradeStates[g] = {};
+  COURSES.filter(c => c.grade === g).forEach(c => { gradeStates[g][c.id] = 0; });
+});
+
+// Conference blocks — purely informational, don't affect pathway counts.
+// confStates[grade][confId] = period (0 = pool)
+const CONFS = [];
+const confStates = {};
+GRADES.forEach(g => { confStates[g] = {}; });
+
+// teacherAvail[grade][teacher][period] = true means available
+const teacherAvail = {};
+GRADES.forEach(g => { teacherAvail[g] = {}; });
+let availSectionOpen = true;
+
+// Safe availability check. Returns true (available) when no availability
+// data exists for the teacher — meaning the user hasn't set any restrictions.
+// Returns false (blocked) only when data exists AND the period is not checked.
+function isTeacherAvailable(grade, teacher, period) {
+  const gradeData = teacherAvail[grade];
+  if (!gradeData) return true;
+  const teacherData = gradeData[teacher];
+  if (!teacherData) return true;
+  // All periods unchecked means the user hasn't configured this teacher yet —
+  // treat as open rather than blocking the entire teacher.
+  const anyChecked = Object.values(teacherData).some(v => v === true);
+  if (!anyChecked) return true;
+  return teacherData[period] === true;
+}
+
+let currentGrade = 6;
+let draggingId   = null;   // course being dragged
+let draggingConf = false;  // true when a conference card is being dragged
+let noteTimer    = null;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function getPeriod(courseId) {
+  return gradeStates[currentGrade][courseId] ?? 0;
+}
+
+function canDrop(targetPeriod, courseId) {
+  if (targetPeriod === 0) return true;
+  // Block reserved / fixed periods entirely.
+  if (getFixed(currentGrade, targetPeriod).length > 0) return false;
+  // Block periods toggled inactive for this grade.
+  if (!gradeActivePeriods[currentGrade]?.has(targetPeriod)) return false;
+  const drag = COURSES.find(c => c.id === courseId);
+  if (!drag) return false;
+
+  // Solo constraint: a solo course must be the only course in its period,
+  // and no course may be dropped into a period already occupied by a solo course.
+  const gradeCourses = COURSES.filter(c => c.grade === currentGrade);
+  const othersInTarget = gradeCourses.filter(c =>
+    c.id !== courseId && (gradeStates[currentGrade]?.[c.id] ?? 0) === targetPeriod
+  );
+  // If any solo course is already in the target period, block all drops there.
+  if (othersInTarget.some(c => soloCourses.has(c.id))) return false;
+  // If the dragged course is solo, the target period must be empty of other courses.
+  if (soloCourses.has(courseId) && othersInTarget.length > 0) return false;
+
+  // Check teacher conflicts across ALL grades — a teacher can only be in one
+  // place per period regardless of which grade view is active.
+  if (COURSES.some(c =>
+    c.id !== courseId &&
+    c.teacher === drag.teacher &&
+    (gradeStates[c.grade]?.[c.id] ?? 0) === targetPeriod
+  )) return false;
+
+  // Bind partners: all bound courses in this grade move together, so check
+  // that each partner's teacher is also free at targetPeriod.
+  const bg = courseBindId[courseId];
+  if (bg) {
+    const allMoving = new Set(
+      COURSES.filter(c => c.grade === currentGrade && courseBindId[c.id] === bg).map(c => c.id)
+    );
+    const partners = COURSES.filter(c => c.grade === currentGrade && c.id !== courseId && allMoving.has(c.id));
+    for (const partner of partners) {
+      const blocked = COURSES.some(c =>
+        !allMoving.has(c.id) &&
+        c.teacher === partner.teacher &&
+        (gradeStates[c.grade]?.[c.id] ?? 0) === targetPeriod
+      );
+      if (blocked) return false;
+    }
+  }
+
+  return true;
+}
+
+function showConflictNote() {
+  const el = document.getElementById('cnote');
+  el.style.display = 'inline-block';
+  clearTimeout(noteTimer);
+  noteTimer = setTimeout(() => { el.style.display = 'none'; }, 2200);
+}
+
+function resetGrade() {
+  COURSES.filter(c => c.grade === currentGrade).forEach(c => {
+    gradeStates[currentGrade][c.id] = 0;
+  });
+  render();
+}
+
+function switchGrade(g) {
+  currentGrade = g;
+  render();
+}
+
+// ── Pathway computation ───────────────────────────────────────────────────────
+function computePaths() {
+  const subjects    = [...(gradeRequirements[currentGrade] || new Set())];
+  const st          = gradeStates[currentGrade];
+  const gradeCourses = COURSES.filter(c => c.grade === currentGrade);
+
+  // Cross-grade candidates: courses from other grades that allow currentGrade
+  // enrollment AND are placed in their home grade's schedule.
+  const crossCourses = COURSES.filter(c =>
+    c.grade !== currentGrade &&
+    crossEnroll[c.id]?.has(currentGrade) &&
+    (gradeStates[c.grade]?.[c.id] ?? 0) > 0
+  );
+
+  // periodOf: unified period lookup for both home-grade and cross-grade courses.
+  // Cross-grade courses read their period from their home grade's state.
+  const periodOf = {};
+  gradeCourses.forEach(c => { periodOf[c.id] = st[c.id] ?? 0; });
+  crossCourses.forEach(c => { periodOf[c.id] = gradeStates[c.grade]?.[c.id] ?? 0; });
+
+  const allCandidates = [...gradeCourses, ...crossCourses];
+
+  // Build candidate list per subject, applying three rules:
+  //   1. Double-period linked courses (linkedId): only the primary half (lower id) is included;
+  //      valid only when both halves are placed.
+  //   2. Gender-split grouped courses (groupId): deduplicated per period so boys/girls
+  //      sections in the same period count as one option.
+  //   3. Paired-subject secondaries (isPairedSecondary): excluded from independent
+  //      selection — they are automatically committed when their driver is chosen.
+  const bySubject = {};
+  subjects.forEach(s => {
+    const candidates = allCandidates.filter(c => {
+      if (c.subject !== s) return false;
+      if ((periodOf[c.id] ?? 0) === 0) return false;
+      if (c.isPairedSecondary) return false;                            // driven by its pair
+      if (c.linkedId && c.id > c.linkedId) return false;               // skip secondary double-period half
+      if (c.linkedId && c.id < c.linkedId) {
+        const sec = COURSES.find(x => x.id === c.linkedId);
+        if (!sec || (periodOf[sec.id] ?? 0) === 0) return false;       // both halves must be placed
+      }
+      return true;
+    });
+
+    const seenGroupPeriods = new Set();
+    bySubject[s] = candidates.filter(c => {
+      if (!c.groupId) return true;
+      const key = `${c.groupId}-${periodOf[c.id] ?? 0}`;
+      if (seenGroupPeriods.has(key)) return false;
+      seenGroupPeriods.add(key);
+      return true;
+    });
+  });
+
+  const results = [];
+
+  // preFilled tracks subjects already committed by a paired-subject selection so
+  // the recursion can skip them rather than trying to fill them independently.
+  function rec(si, chosen, usedPeriods, preFilled) {
+    if (si === subjects.length) {
+      results.push([...chosen]);
+      return;
+    }
+    const subj = subjects[si];
+
+    // Subject already committed (e.g. Reading filled when Grammar was chosen)
+    if (preFilled.has(subj)) {
+      rec(si + 1, chosen, usedPeriods, preFilled);
+      return;
+    }
+
+    for (const c of (bySubject[subj] || [])) {
+      const p = periodOf[c.id] ?? 0;
+
+      // Double-period secondary (same subject, second meeting period)
+      const sec  = c.linkedId ? COURSES.find(x => x.id === c.linkedId) : null;
+      const secP = sec ? (periodOf[sec.id] ?? 0) : 0;
+
+      // Paired-subject companion (different subject that must travel with this course)
+      const pair  = (c.pairedWith && !c.isPairedSecondary) ? COURSES.find(x => x.id === c.pairedWith) : null;
+      const pairP = pair ? (periodOf[pair.id] ?? 0) : 0;
+
+      if (pair && pairP === 0) continue;           // companion must be placed
+      if (pair && pairP === p) continue;           // can't share same period
+      if (usedPeriods.has(p)) continue;
+      if (secP  && usedPeriods.has(secP))  continue;
+      if (pairP && usedPeriods.has(pairP)) continue;
+
+      usedPeriods.add(p);
+      if (secP)  usedPeriods.add(secP);
+      if (pairP) usedPeriods.add(pairP);
+
+      chosen.push({ course: c, period: p, sec, secP: secP || null });
+      if (pair) chosen.push({ course: pair, period: pairP, sec: null, secP: null });
+      if (pair) preFilled.add(pair.subject);
+
+      rec(si + 1, chosen, usedPeriods, preFilled);
+
+      if (pair) preFilled.delete(pair.subject);
+      if (pair) chosen.pop();
+      chosen.pop();
+
+      usedPeriods.delete(p);
+      if (secP)  usedPeriods.delete(secP);
+      if (pairP) usedPeriods.delete(pairP);
+    }
+  }
+
+  rec(0, [], new Set(), new Set());
+  return results;
+}
+
+// ── Teacher availability ──────────────────────────────────────────────────────
+
+// Ensure all teachers for a grade are present in teacherAvail (called lazily).
+function ensureTeacherAvail(grade) {
+  if (!teacherAvail[grade]) teacherAvail[grade] = {};
+  const teachers = [...new Set(COURSES.filter(c => c.grade === grade).map(c => c.teacher))];
+  teachers.forEach(t => {
+    if (!teacherAvail[grade][t]) {
+      teacherAvail[grade][t] = {};
+      for (let p = 1; p <= 8; p++) teacherAvail[grade][t][p] = false;
+    }
+  });
+}
+
+function toggleAvail(teacher, period, checked) {
+  ensureTeacherAvail(currentGrade);
+  teacherAvail[currentGrade][teacher][period] = checked;
+}
+
+function setTeacherAllAvail(teacher, val) {
+  ensureTeacherAvail(currentGrade);
+  for (let p = 1; p <= 8; p++) {
+    if (getFixed(currentGrade, p).length === 0) {
+      teacherAvail[currentGrade][teacher][p] = val;
+    }
+  }
+  renderAvail();
+}
+
+function checkAllAvail() {
+  ensureTeacherAvail(currentGrade);
+  Object.keys(teacherAvail[currentGrade]).forEach(t => setTeacherAllAvail(t, true));
+}
+
+function clearAllAvail() {
+  ensureTeacherAvail(currentGrade);
+  Object.keys(teacherAvail[currentGrade]).forEach(t => setTeacherAllAvail(t, false));
+}
+
+function toggleAvailSection() {
+  availSectionOpen = !availSectionOpen;
+  document.getElementById('availBody').style.display = availSectionOpen ? '' : 'none';
+  document.getElementById('avail-toggle-btn').textContent = availSectionOpen ? 'Hide ▲' : 'Show ▼';
+}
+
+function renderAvail() {
+  const grade = currentGrade;
+  ensureTeacherAvail(grade);
+  const teachers = [...new Set(COURSES.filter(c => c.grade === grade).map(c => c.teacher))].sort();
+
+  if (!teachers.length) {
+    document.getElementById('availBody').innerHTML =
+      '<p class="empty-msg" style="padding:6px 0">No teachers in this grade yet.</p>';
+    return;
+  }
+
+  // Build cross-grade commitment map: teacher → { period → gradeNumber }
+  const committed = {};
+  GRADES.filter(g => g !== grade).forEach(g => {
+    COURSES.filter(c => c.grade === g).forEach(c => {
+      const p = gradeStates[g]?.[c.id] ?? 0;
+      if (p > 0) {
+        if (!committed[c.teacher]) committed[c.teacher] = {};
+        if (!committed[c.teacher][p]) committed[c.teacher][p] = g;
+      }
+    });
+  });
+
+  const periods = [1,2,3,4,5,6,7,8];
+
+  let h = '<table class="avail-tbl"><thead><tr><th>Teacher</th>';
+  periods.forEach(p => { h += `<th>P${p}</th>`; });
+  h += '<th></th></tr></thead><tbody>';
+
+  teachers.forEach(teacher => {
+    h += `<tr><td class="avail-teacher">${teacher}</td>`;
+    periods.forEach(p => {
+      const fixed = getFixed(grade, p);
+      if (fixed.length > 0) {
+        const labels = fixed.map(f => `<span class="avail-fixed-cell${f === 'studyhall' ? ' studyhall' : f === 'electives' ? ' electives' : ''}">${FIXED_LABEL[f]}</span>`).join(' ');
+        h += `<td>${labels}</td>`;
+      } else if (committed[teacher]?.[p] !== undefined) {
+        h += `<td><span class="avail-cross-cell" title="Committed in Grade ${committed[teacher][p]}">G${committed[teacher][p]}</span></td>`;
+      } else {
+        const checked = teacherAvail[grade]?.[teacher]?.[p] ? 'checked' : '';
+        h += `<td><input type="checkbox" class="avail-cb" ${checked} onchange="toggleAvail('${teacher.replace(/'/g,"\\'")}',${p},this.checked)"></td>`;
+      }
+    });
+    h += `<td><button class="reset-btn avail-all-btn" onclick="setTeacherAllAvail('${teacher.replace(/'/g,"\\'")}',true)">All</button></td>`;
+    h += '</tr>';
+  });
+
+  h += '</tbody></table>';
+  document.getElementById('availBody').innerHTML = h;
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function clearColStates() {
+  document.querySelectorAll('.sc').forEach(el => el.classList.remove('over', 'blocked'));
+}
+
+function render() {
+  // Grade tabs
+  document.getElementById('gradeTabs').innerHTML = GRADES.map(g =>
+    `<button class="gtab${g === currentGrade ? ' active' : ''}" onclick="switchGrade(${g})">Grade ${g}</button>`
+  ).join('');
+
+  // Legend — build from union of GRADE_SUBJECTS defaults and actual course subjects,
+  // then render as clickable toggles that control whether each subject is required.
+  const baseSubjects = GRADE_SUBJECTS[currentGrade] || [];
+  const courseSubjects = COURSES.filter(c => c.grade === currentGrade).map(c => c.subject);
+  const legendSubjects = [...new Set([...baseSubjects, ...courseSubjects])];
+  const req = gradeRequirements[currentGrade];
+  document.getElementById('legend').innerHTML = legendSubjects
+    .map(s => {
+      const on = req.has(s);
+      return `<span class="ck k-${s}${on ? '' : ' ck-off'}" onclick="toggleRequirement('${s}')"
+        title="${on ? 'Required for pathway — click to make optional' : 'Optional — click to require'}">${SUBJ_LABEL[s] || s}</span>`;
+    })
+    .join('');
+
+  // Availability panel
+  renderAvail();
+
+  // Grid
+  const grid = document.getElementById('sg');
+  grid.innerHTML = '';
+
+  PERIODS.forEach(({ p, label }) => {
+    const col = document.createElement('div');
+    col.className = 'sc';
+    if (p === 0) col.id = 'pool-col';
+    col.innerHTML = `<div class="sh">${label}</div>`;
+
+    const fixedItems = getFixed(currentGrade, p);
+    const isInactive = p > 0 && fixedItems.length === 0 && !gradeActivePeriods[currentGrade]?.has(p);
+    if (fixedItems.length > 0) col.classList.add('sc-fixed');
+    if (isInactive) col.classList.add('sc-inactive');
+
+    // Re-render the header with toggle behaviour for non-fixed, non-pool periods
+    if (p > 0 && fixedItems.length === 0) {
+      const sh = col.querySelector('.sh');
+      sh.classList.add('sh-toggleable');
+      if (isInactive) sh.classList.add('sh-off');
+      sh.title = isInactive ? 'Period disabled — click to re-enable' : 'Click to disable this period for this grade';
+      sh.addEventListener('click', () => togglePeriod(p));
+    }
+
+    col.addEventListener('dragover', e => {
+      e.preventDefault();
+      clearColStates();
+      // Fixed / reserved columns reject all drops silently.
+      if (fixedItems.length > 0) {
+        e.dataTransfer.dropEffect = 'none';
+        return;
+      }
+      // Conference cards are purely informational — no conflict blocking.
+      if (!draggingConf && draggingId !== null && !canDrop(p, draggingId)) {
+        e.dataTransfer.dropEffect = 'none';
+        col.classList.add('blocked');
+      } else {
+        e.dataTransfer.dropEffect = 'move';
+        col.classList.add('over');
+      }
+    });
+
+    col.addEventListener('dragleave', e => {
+      if (!col.contains(e.relatedTarget)) col.classList.remove('over', 'blocked');
+    });
+
+    col.addEventListener('drop', e => {
+      e.preventDefault();
+      col.classList.remove('over', 'blocked');
+      if (fixedItems.length > 0) return; // reserved — reject silently
+      const raw = e.dataTransfer.getData('text/plain');
+      if (raw.startsWith('f:')) {
+        // Conference card drop — no conflict check needed.
+        const confId = parseInt(raw.slice(2));
+        confStates[currentGrade][confId] = p;
+        render();
+        return;
+      }
+      const id = parseInt(raw);
+      if (!canDrop(p, id)) { showConflictNote(); return; }
+      gradeStates[currentGrade][id] = p;
+      // Co-move any bind partners to the same period
+      const bindGrp = courseBindId[id];
+      if (bindGrp) {
+        COURSES.filter(c => c.grade === currentGrade && c.id !== id && courseBindId[c.id] === bindGrp)
+               .forEach(partner => { gradeStates[currentGrade][partner.id] = p; });
+      }
+      render();
+    });
+
+    const coursesHere = COURSES.filter(c => c.grade === currentGrade && getPeriod(c.id) === p);
+    const confsHere   = CONFS.filter(f => f.grade === currentGrade && (confStates[currentGrade][f.id] ?? 0) === p);
+
+    if (p === 0 && coursesHere.length === 0 && confsHere.length === 0) {
+      col.innerHTML += `<p class="pool-hint">Drag courses here to return them to the pool.</p>`;
+    }
+
+    // Locked reserved cards (always rendered first, can't be moved or deleted)
+    fixedItems.forEach(type => {
+      const card = document.createElement('div');
+      card.className = `cc-fixed cc-fixed-${type}`;
+      card.innerHTML =
+        `<div class="fixed-name">${FIXED_LABEL[type]}</div>` +
+        `<span class="fixed-badge">Reserved</span>`;
+      col.appendChild(card);
+    });
+
+    coursesHere.forEach(c => {
+      const card = document.createElement('div');
+      card.className = 'cc';
+      card.draggable = true;
+      const dbl  = c.linkedId ? `<span style="font-size:9px;color:var(--text-tertiary);margin-left:4px">2×</span>` : '';
+      const solo = soloCourses.has(c.id) ? `<span class="solo-badge">solo</span>` : '';
+      const ceG  = crossEnroll[c.id];
+      const ce   = (ceG && ceG.size > 0)
+        ? `<span class="ce-badge">→G${[...ceG].sort().join(',')}</span>` : '';
+      const bg   = courseBindId[c.id];
+      const bindPartners = bg
+        ? COURSES.filter(x => x.grade === c.grade && x.id !== c.id && courseBindId[x.id] === bg) : [];
+      const bindBadge = bindPartners.length > 0
+        ? `<span class="bind-badge" title="Bound with: ${bindPartners.map(x => x.name).join(', ')}">⊕ bound</span>` : '';
+      const displayName = c.groupLabel || c.name;
+      card.innerHTML =
+        `<div class="cn" title="Right-click for options">${displayName}${dbl}${solo}${ce}${bindBadge}</div>` +
+        `<div class="ct" title="Right-click for options">${c.teacher}</div>` +
+        `<span class="ck k-${c.subject}">${SUBJ_LABEL[c.subject]}</span>`;
+
+      // Single card-level right-click opens context menu
+      card.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        showCtxMenu(e.clientX, e.clientY, c, card, null);
+      });
+
+      card.addEventListener('dragstart', e => {
+        draggingId   = c.id;
+        draggingConf = false;
+        e.dataTransfer.setData('text/plain', String(c.id));
+        e.dataTransfer.effectAllowed = 'move';
+        requestAnimationFrame(() => card.classList.add('drag'));
+      });
+
+      card.addEventListener('dragend', () => {
+        draggingId   = null;
+        draggingConf = false;
+        card.classList.remove('drag');
+        clearColStates();
+      });
+
+      col.appendChild(card);
+    });
+
+    // Conference cards
+    confsHere.forEach(f => {
+      const card = document.createElement('div');
+      card.className = 'cc-conf';
+      card.draggable = true;
+      card.innerHTML =
+        `<div class="conf-name">${f.teacher}</div>` +
+        `<span class="conf-badge">Conference</span>`;
+
+      card.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        showCtxMenu(e.clientX, e.clientY, null, card, f);
+      });
+
+      card.addEventListener('dragstart', e => {
+        draggingId   = null;
+        draggingConf = true;
+        e.dataTransfer.setData('text/plain', 'f:' + f.id);
+        e.dataTransfer.effectAllowed = 'move';
+        requestAnimationFrame(() => card.classList.add('drag'));
+      });
+
+      card.addEventListener('dragend', () => {
+        draggingConf = false;
+        card.classList.remove('drag');
+        clearColStates();
+      });
+
+      col.appendChild(card);
+    });
+
+    grid.appendChild(col);
+  });
+
+  // Pathways
+  const paths = computePaths();
+  document.getElementById('pn').textContent = paths.length;
+  document.getElementById('plabel').textContent = paths.length === 1 ? 'valid pathway' : 'valid pathways';
+
+  const pl = document.getElementById('pl');
+
+  if (!paths.length) {
+    const allInPool = COURSES
+      .filter(c => c.grade === currentGrade)
+      .every(c => getPeriod(c.id) === 0);
+    pl.innerHTML = allInPool
+      ? '<p class="empty-msg">Drag courses from the pool into period columns to begin building pathways.</p>'
+      : '<p class="empty-msg">No valid pathways yet — each required subject needs at least one course assigned to a period, and no two chosen courses can share a period.</p>';
+    return;
+  }
+
+  // Collect all periods covered across all valid pathways (including linked secondary periods)
+  const allPeriods = new Set();
+  paths.flat().forEach(({ period, secP }) => {
+    allPeriods.add(period);
+    if (secP) allPeriods.add(secP);
+  });
+  const usedPeriods = [...allPeriods].sort((a, b) => a - b);
+  const ordinals = ['', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
+
+  let h = '<table class="ptbl"><thead><tr><th>#</th>';
+  usedPeriods.forEach(p => { h += `<th>${ordinals[p]}</th>`; });
+  h += '</tr></thead><tbody>';
+
+  paths.forEach((path, i) => {
+    // Build period → course map; linked (double-period) courses fill both slots
+    const byPeriod = {};
+    path.forEach(({ course, period, sec, secP }) => {
+      byPeriod[period] = course;
+      if (sec && secP) byPeriod[secP] = sec;
+    });
+
+    h += `<tr><td style="color:var(--text-tertiary);font-size:11px">${i + 1}</td>`;
+    usedPeriods.forEach(p => {
+      const c = byPeriod[p];
+      if (c) {
+        h += `<td><span class="ck k-${c.subject}">${c.groupLabel || c.name}</span></td>`;
+      } else {
+        h += `<td style="color:var(--text-tertiary)">—</td>`;
+      }
+    });
+    h += '</tr>';
+  });
+
+  h += '</tbody></table>';
+  pl.innerHTML = h;
+}
+
+// ── Inline editing ───────────────────────────────────────────────────────────
+function makeEditable(el, course, field, card) {
+  const current = String(course[field] || '');
+  el.textContent = '';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = current;
+  input.className = 'edit-input';
+  el.appendChild(input);
+  card.draggable = false;
+  input.focus();
+  input.select();
+
+  let done = false;
+  const commit = (cancel) => {
+    if (done) return;
+    done = true;
+    if (!cancel) {
+      const v = input.value.trim();
+      if (v) course[field] = v;
+    }
+    card.draggable = true;
+    render();
+  };
+
+  input.addEventListener('blur', () => commit(false));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); commit(false); }
+    if (e.key === 'Escape') { e.preventDefault(); commit(true);  }
+  });
+  // prevent blur from firing twice when Enter is pressed
+  input.addEventListener('mousedown', e => e.stopPropagation());
+}
+
+// ── Context menu ─────────────────────────────────────────────────────────────
+let ctxCourse = null;
+let ctxCard   = null;
+let ctxConf   = null;  // set when right-clicking a conference card
+
+function showCtxMenu(x, y, course, card, conf) {
+  ctxCourse = course;
+  ctxCard   = card;
+  ctxConf   = conf || null;
+
+  // Show/hide edit items and adjust delete label depending on card type.
+  const isConf = !!conf;
+  document.getElementById('ctx-edit-name').style.display    = isConf ? 'none' : '';
+  document.getElementById('ctx-edit-teacher').style.display = isConf ? 'none' : '';
+  document.querySelector('.ctx-sep').style.display           = isConf ? 'none' : '';
+  document.getElementById('ctx-solo').style.display          = isConf ? 'none' : '';
+  document.getElementById('ctx-ce').style.display            = isConf ? 'none' : '';
+  document.getElementById('ctx-bind').style.display          = isConf ? 'none' : '';
+  document.getElementById('ctx-link').style.display          = isConf ? 'none' : '';
+  document.querySelector('.ctx-sep2').style.display          = isConf ? 'none' : '';
+  document.getElementById('ctx-delete').textContent          = isConf ? 'Remove conference' : 'Delete class';
+
+  // Update solo, cross-enroll, and bind labels to reflect current state
+  if (!isConf && course) {
+    document.getElementById('ctx-solo').textContent =
+      soloCourses.has(course.id) ? 'Remove solo designation' : 'Mark as solo period';
+    const ceGrades = crossEnroll[course.id];
+    document.getElementById('ctx-ce').textContent = (ceGrades && ceGrades.size > 0)
+      ? `Cross-grade enrollment (→G${[...ceGrades].sort().join(', G')})` : 'Cross-grade enrollment...';
+    const bg = courseBindId[course.id];
+    if (bg) {
+      const partners = COURSES.filter(c => c.grade === course.grade && c.id !== course.id && courseBindId[c.id] === bg);
+      document.getElementById('ctx-bind').textContent =
+        `Edit binding (${partners.length} partner${partners.length !== 1 ? 's' : ''})`;
+    } else {
+      document.getElementById('ctx-bind').textContent = 'Bind to same period...';
+    }
+    // Double-block link label
+    const linkBtn = document.getElementById('ctx-link');
+    const userPid = userLinkedMap[course.id];
+    const builtinLinked = course.linkedId && userPid === undefined;
+    if (builtinLinked) {
+      const partner = COURSES.find(c => c.id === course.linkedId);
+      linkBtn.textContent  = `Double-block: ${partner?.name || '?'} (built-in)`;
+      linkBtn.style.opacity = '0.45';
+      linkBtn.style.pointerEvents = 'none';
+    } else if (userPid !== undefined) {
+      const partner = COURSES.find(c => c.id === userPid);
+      linkBtn.textContent  = `Edit double-block (${partner?.name || '?'})`;
+      linkBtn.style.opacity = '';
+      linkBtn.style.pointerEvents = '';
+    } else {
+      linkBtn.textContent  = 'Link as double-block...';
+      linkBtn.style.opacity = '';
+      linkBtn.style.pointerEvents = '';
+    }
+  }
+
+  const menu = document.getElementById('ctx-menu');
+  menu.style.display = 'block';
+  const W = window.innerWidth, H = window.innerHeight;
+  const mw = 230, mh = isConf ? 40 : 195;
+  menu.style.left = (x + mw > W ? W - mw - 8 : x) + 'px';
+  menu.style.top  = (y + mh > H ? H - mh - 8 : y) + 'px';
+}
+
+function hideCtxMenu() {
+  document.getElementById('ctx-menu').style.display = 'none';
+  ctxCourse = null;
+  ctxCard   = null;
+}
+
+document.addEventListener('click', () => hideCtxMenu());
+document.addEventListener('contextmenu', e => {
+  if (!e.target.closest('#ctx-menu')) hideCtxMenu();
+});
+
+document.getElementById('ctx-edit-name').addEventListener('click', e => {
+  e.stopPropagation();
+  if (!ctxCourse || !ctxCard) return;
+  const course = ctxCourse, card = ctxCard;
+  hideCtxMenu();
+  makeEditable(card.querySelector('.cn'), course, course.groupLabel !== undefined ? 'groupLabel' : 'name', card);
+});
+
+document.getElementById('ctx-edit-teacher').addEventListener('click', e => {
+  e.stopPropagation();
+  if (!ctxCourse || !ctxCard) return;
+  const course = ctxCourse, card = ctxCard;
+  hideCtxMenu();
+  makeEditable(card.querySelector('.ct'), course, 'teacher', card);
+});
+
+document.getElementById('ctx-solo').addEventListener('click', e => {
+  e.stopPropagation();
+  if (!ctxCourse) return;
+  const id = ctxCourse.id;
+  if (soloCourses.has(id)) soloCourses.delete(id);
+  else soloCourses.add(id);
+  hideCtxMenu();
+  render();
+});
+
+document.getElementById('ctx-ce').addEventListener('click', e => {
+  e.stopPropagation();
+  if (!ctxCourse) return;
+  ceCourse = ctxCourse;
+  hideCtxMenu();
+  openCE();
+});
+
+document.getElementById('ctx-bind').addEventListener('click', e => {
+  e.stopPropagation();
+  if (!ctxCourse) return;
+  bindCourse = ctxCourse;
+  hideCtxMenu();
+  openBind();
+});
+
+document.getElementById('ctx-link').addEventListener('click', e => {
+  e.stopPropagation();
+  if (!ctxCourse) return;
+  linkCourse = ctxCourse;
+  hideCtxMenu();
+  openLink();
+});
+
+function openLink() {
+  if (!linkCourse) return;
+  document.getElementById('link-course-name').textContent = linkCourse.name;
+  const currentPid = userLinkedMap[linkCourse.id];
+  // Build the radio list: all grade courses that are either unlinked or the current partner
+  const candidates = COURSES
+    .filter(c => {
+      if (c.grade !== linkCourse.grade || c.id === linkCourse.id) return false;
+      // Exclude courses already user-linked to someone else
+      const pid = userLinkedMap[c.id];
+      if (pid !== undefined && pid !== linkCourse.id) return false;
+      // Exclude courses with a built-in linkedId (not in userLinkedMap)
+      if (c.linkedId !== undefined && pid === undefined) return false;
+      return true;
+    })
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  document.getElementById('link-course-list').innerHTML = candidates.length
+    ? candidates.map(c => `
+        <label class="link-course-label">
+          <input class="link-course-rb" type="radio" name="link-pick" value="${c.id}"${c.id === currentPid ? ' checked' : ''}>
+          ${c.name} <span class="link-course-teacher">${c.teacher}</span>
+        </label>`).join('')
+    : `<p style="font-size:11px;color:var(--text-secondary);margin:4px 0">No eligible courses found in this grade.</p>`;
+  // Show Remove button only if a user link already exists
+  document.getElementById('link-remove-btn').style.display = currentPid !== undefined ? '' : 'none';
+  document.getElementById('link-overlay').classList.add('open');
+}
+
+function saveLink() {
+  if (!linkCourse) return;
+  const sel = document.querySelector('#link-course-list input[type=radio]:checked');
+  if (!sel) { closeLink(); return; }
+  const partnerId = parseInt(sel.value);
+  // Remove old link if changing partner
+  if (userLinkedMap[linkCourse.id] !== undefined) _clearUserLink(linkCourse.id);
+  // Create new link: mutate course objects so existing logic picks it up
+  const c1 = COURSES.find(c => c.id === linkCourse.id);
+  const c2 = COURSES.find(c => c.id === partnerId);
+  if (c1) c1.linkedId = partnerId;
+  if (c2) c2.linkedId = linkCourse.id;
+  userLinkedMap[linkCourse.id] = partnerId;
+  userLinkedMap[partnerId]     = linkCourse.id;
+  closeLink();
+  render();
+}
+
+function removeUserLink() {
+  if (!linkCourse) return;
+  _clearUserLink(linkCourse.id);
+  closeLink();
+  render();
+}
+
+function _clearUserLink(courseId) {
+  const partnerId = userLinkedMap[courseId];
+  delete userLinkedMap[courseId];
+  const c1 = COURSES.find(c => c.id === courseId);
+  if (c1 && c1.linkedId === partnerId) delete c1.linkedId;
+  if (partnerId !== undefined) {
+    delete userLinkedMap[partnerId];
+    const c2 = COURSES.find(c => c.id === partnerId);
+    if (c2 && c2.linkedId === courseId) delete c2.linkedId;
+  }
+}
+
+function closeLink() {
+  document.getElementById('link-overlay').classList.remove('open');
+  linkCourse = null;
+}
+
+function openBind() {
+  if (!bindCourse) return;
+  document.getElementById('bind-course-name').textContent = bindCourse.name;
+  const bg        = courseBindId[bindCourse.id];
+  const gradeList = COURSES
+    .filter(c => c.grade === bindCourse.grade && c.id !== bindCourse.id)
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  document.getElementById('bind-course-list').innerHTML = gradeList.map(c => {
+    const checked = bg && courseBindId[c.id] === bg ? ' checked' : '';
+    return `<label class="bind-course-label">
+      <input class="bind-course-cb" type="checkbox" value="${c.id}"${checked}>
+      ${c.name} <span class="bind-course-teacher">${c.teacher}</span>
+    </label>`;
+  }).join('');
+  document.getElementById('bind-overlay').classList.add('open');
+}
+
+function saveBind() {
+  if (!bindCourse) return;
+  const checks   = document.querySelectorAll('#bind-course-list input[type=checkbox]');
+  const selected = [...checks].filter(x => x.checked).map(x => parseInt(x.value));
+  const allInGroup = [bindCourse.id, ...selected];
+
+  // Determine the bind group ID to use: reuse existing if any member already has one,
+  // otherwise create a new one.
+  let bg = courseBindId[bindCourse.id];
+  for (const id of selected) { if (courseBindId[id]) { bg = courseBindId[id]; break; } }
+  if (!bg) bg = `u-bind-${++bindSeq}`;
+
+  // First remove the anchor course (and previously checked partners) from any old group
+  // Clean up any group that would lose all members
+  const allKnown = COURSES.filter(c => c.grade === bindCourse.grade).map(c => c.id);
+  allKnown.forEach(id => {
+    if (courseBindId[id] === courseBindId[bindCourse.id] && !allInGroup.includes(id)) {
+      delete courseBindId[id];
+    }
+  });
+
+  if (selected.length === 0) {
+    // No partners selected — remove the anchor from any group entirely
+    delete courseBindId[bindCourse.id];
+  } else {
+    allInGroup.forEach(id => { courseBindId[id] = bg; });
+  }
+  closeBind();
+  render();
+}
+
+function closeBind() {
+  document.getElementById('bind-overlay').classList.remove('open');
+  bindCourse = null;
+}
+
+function openCE() {
+  if (!ceCourse) return;
+  document.getElementById('ce-course-name').textContent = ceCourse.name;
+  const existing = crossEnroll[ceCourse.id] || new Set();
+  document.getElementById('ce-grade-list').innerHTML = GRADES
+    .filter(g => g !== ceCourse.grade)
+    .map(g => `<label class="ce-grade-label">
+      <input class="ce-grade-cb" type="checkbox" value="${g}"${existing.has(g) ? ' checked' : ''}>
+      Grade ${g}
+    </label>`)
+    .join('');
+  document.getElementById('ce-overlay').classList.add('open');
+}
+
+function saveCE() {
+  if (!ceCourse) return;
+  const checks = document.querySelectorAll('#ce-grade-list input[type=checkbox]');
+  const selected = [...checks].filter(x => x.checked).map(x => parseInt(x.value));
+  if (selected.length === 0) {
+    delete crossEnroll[ceCourse.id];
+  } else {
+    crossEnroll[ceCourse.id] = new Set(selected);
+  }
+  closeCE();
+  render();
+}
+
+function closeCE() {
+  document.getElementById('ce-overlay').classList.remove('open');
+  ceCourse = null;
+}
+
+document.getElementById('ctx-delete').addEventListener('click', e => {
+  e.stopPropagation();
+  if (ctxConf) {
+    // Remove a conference block
+    const f = ctxConf;
+    hideCtxMenu();
+    const idx = CONFS.findIndex(x => x.id === f.id);
+    if (idx !== -1) CONFS.splice(idx, 1);
+    GRADES.forEach(g => { delete confStates[g][f.id]; });
+    render();
+    return;
+  }
+  if (!ctxCourse) return;
+  const c = ctxCourse;
+  hideCtxMenu();
+  const idx = COURSES.findIndex(x => x.id === c.id);
+  if (idx !== -1) COURSES.splice(idx, 1);
+  GRADES.forEach(g => { delete gradeStates[g][c.id]; });
+  soloCourses.delete(c.id);       // clean up solo flag if set
+  delete crossEnroll[c.id];       // clean up cross-enroll if set
+  delete courseBindId[c.id];      // clean up bind group membership if set
+  _clearUserLink(c.id);           // clean up user-linked double-block pair if set
+  render();
+});
+
+// ── Conference picker ─────────────────────────────────────────────────────────
+function openConfPicker() {
+  // Populate teacher list from all courses in the current grade, sorted.
+  const teachers = [...new Set(COURSES.filter(c => c.grade === currentGrade).map(c => c.teacher))].sort();
+  const sel = document.getElementById('cf-teacher');
+  sel.innerHTML = teachers.length
+    ? teachers.map(t => `<option value="${t}">${t}</option>`).join('')
+    : '<option value="">No teachers in this grade</option>';
+  document.getElementById('conf-overlay').style.display = 'flex';
+  sel.focus();
+}
+
+function closeConfPicker() {
+  document.getElementById('conf-overlay').style.display = 'none';
+}
+
+function confirmConf() {
+  const teacher = document.getElementById('cf-teacher').value;
+  if (!teacher) return;
+  const newId = Math.max(...CONFS.map(f => f.id), 9000) + 1;
+  CONFS.push({ id: newId, teacher, grade: currentGrade });
+  confStates[currentGrade][newId] = 0; // starts in pool
+  closeConfPicker();
+  render();
+}
+
+document.getElementById('conf-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('conf-overlay')) closeConfPicker();
+});
+
+// ── New class ─────────────────────────────────────────────────────────────────
+function openNewClass() {
+  const gradeSelect = document.getElementById('nc-grade');
+  gradeSelect.innerHTML = GRADES.map(g =>
+    `<option value="${g}"${g === currentGrade ? ' selected' : ''}>Grade ${g}</option>`
+  ).join('');
+
+  const subjectSelect = document.getElementById('nc-subject');
+  subjectSelect.innerHTML = Object.entries(SUBJ_LABEL).map(([k, v]) =>
+    `<option value="${k}">${v}</option>`
+  ).join('');
+
+  document.getElementById('nc-name').value = '';
+  document.getElementById('nc-teacher').value = '';
+  document.getElementById('new-class-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('nc-name').focus(), 50);
+}
+
+function closeNewClass() {
+  document.getElementById('new-class-overlay').classList.remove('open');
+}
+
+function confirmNewClass() {
+  const name    = document.getElementById('nc-name').value.trim();
+  const teacher = document.getElementById('nc-teacher').value.trim();
+  const grade   = parseInt(document.getElementById('nc-grade').value);
+  const subject = document.getElementById('nc-subject').value;
+
+  if (!name)    { document.getElementById('nc-name').focus(); return; }
+  if (!teacher) { document.getElementById('nc-teacher').focus(); return; }
+
+  const newId = Math.max(...COURSES.map(c => c.id), 1000) + 1;
+  COURSES.push({ id: newId, name, teacher, subject, grade });
+
+  // Initialize in pool for the target grade
+  if (!gradeStates[grade]) gradeStates[grade] = {};
+  gradeStates[grade][newId] = 0;
+
+  currentGrade = grade;
+  closeNewClass();
+  render();
+}
+
+document.getElementById('new-class-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('new-class-overlay')) closeNewClass();
+});
+
+document.getElementById('ce-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('ce-overlay')) closeCE();
+});
+
+document.getElementById('bind-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('bind-overlay')) closeBind();
+});
+
+document.getElementById('link-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('link-overlay')) closeLink();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeNewClass(); closeConfPicker(); closeCE(); closeBind(); closeLink(); hideCtxMenu(); }
+});
+
+// ── Optimizer ─────────────────────────────────────────────────────────────────
+// CSP backtracking with Most-Constrained-Variable (MCV) heuristic.
+// Handles three unit types: 'group' (same-period constraint via groupId),
+// 'linked' (two different periods, same teacher), 'single' (standalone).
+// Runs multiple trials with shuffled MCV ordering; keeps the highest-scoring
+// valid arrangement. For grades 6-8 enforces a hard 2-per-period cap.
+
+function optimizeGrade() {
+  const grade = currentGrade;
+  ensureTeacherAvail(grade);
+  const gradeCourses = COURSES.filter(c => c.grade === grade);
+  if (!gradeCourses.length) return;
+
+  // Pre-compute cross-grade blocked periods: teacher → Set<period>
+  const crossBlocked = {};
+  for (const og of GRADES) {
+    if (og === grade) continue;
+    for (const c of COURSES) {
+      if (c.grade !== og) continue;
+      const p = gradeStates[og]?.[c.id] ?? 0;
+      if (p > 0) {
+        if (!crossBlocked[c.teacher]) crossBlocked[c.teacher] = new Set();
+        crossBlocked[c.teacher].add(p);
+      }
+    }
+  }
+
+  const openPeriods = [1,2,3,4,5,6,7,8].filter(p =>
+    getFixed(grade, p).length === 0 && (gradeActivePeriods[grade]?.has(p) ?? true)
+  );
+  // Grades 6-8: hard 2-per-period cap enforces parallel sections.
+  // Grades 9-12: dynamic cap = ceil(courses ÷ open periods) forces even spread.
+  const periodCap = grade <= 8
+    ? 2
+    : Math.max(1, Math.ceil(gradeCourses.length / Math.max(1, openPeriods.length)));
+
+  // Build scheduling units
+  //   'group'  — all courses sharing a groupId → must all go in ONE period
+  //   'linked' — linkedId pair → must occupy TWO DIFFERENT periods (same teacher)
+  //   'single' — standalone course
+  // Each unit carries `solo: true` if any of its courses are in soloCourses,
+  // meaning it must be the only course placed in whatever period it occupies.
+  const seenIds       = new Set();
+  const handledGroups = new Set();
+  const handledBinds  = new Set();
+  const units         = [];
+
+  for (const c of gradeCourses) {
+    if (seenIds.has(c.id)) continue;
+
+    // User-created bind groups: must share the same period
+    const bg = courseBindId[c.id];
+    if (bg && !handledBinds.has(bg)) {
+      handledBinds.add(bg);
+      const grp = gradeCourses.filter(x => courseBindId[x.id] === bg);
+      grp.forEach(x => seenIds.add(x.id));
+      units.push({ type: 'group', ids: grp.map(x => x.id), teachers: grp.map(x => x.teacher),
+                   size: grp.length, solo: grp.some(x => soloCourses.has(x.id)) });
+      continue;
+    }
+    if (bg) { seenIds.add(c.id); continue; } // already handled above
+
+    if (c.groupId && !handledGroups.has(c.groupId)) {
+      handledGroups.add(c.groupId);
+      const grp = gradeCourses.filter(x => x.groupId === c.groupId);
+      grp.forEach(x => seenIds.add(x.id));
+      units.push({ type: 'group', ids: grp.map(x => x.id), teachers: grp.map(x => x.teacher),
+                   size: grp.length, solo: grp.some(x => soloCourses.has(x.id)) });
+      continue;
+    }
+    if (c.groupId) { seenIds.add(c.id); continue; }
+
+    seenIds.add(c.id);
+    if (c.linkedId && !seenIds.has(c.linkedId)) {
+      const partner = gradeCourses.find(x => x.id === c.linkedId);
+      if (partner) {
+        seenIds.add(c.linkedId);
+        units.push({ type: 'linked', ids: [c.id, c.linkedId], teachers: [c.teacher, partner.teacher],
+                     solo: soloCourses.has(c.id) || soloCourses.has(c.linkedId) });
+        continue;
+      }
+    }
+    units.push({ type: 'single', ids: [c.id], teachers: [c.teacher], size: 1,
+                 solo: soloCourses.has(c.id) });
+  }
+
+  // Can we place all `teachers` of a unit at period `p` given mutable state?
+  // soloInPeriod tracks periods already claimed by a solo unit.
+  // isSolo — the unit being placed is itself solo (needs an empty period).
+  function canPlace(teachers, size, p, pCounts, tUsed, soloInPeriod, isSolo) {
+    if (getFixed(grade, p).length > 0) return false;
+    if (soloInPeriod[p]) return false;       // period already owned by a solo course
+    if (isSolo) {
+      if ((pCounts[p] || 0) > 0) return false;  // solo needs a completely empty period
+    } else {
+      if ((pCounts[p] || 0) + size > periodCap) return false;  // normal 2-per-period cap
+    }
+    for (const t of teachers) {
+      if (!isTeacherAvailable(grade, t, p)) return false;
+      if (tUsed[t]?.[p])                    return false;
+      if (crossBlocked[t]?.has(p))           return false;
+    }
+    return true;
+  }
+
+  // Count valid period options for a unit (used for MCV ordering)
+  function countOptions(unit) {
+    const empty = {};
+    if (unit.type === 'linked') {
+      let n = 0;
+      for (const p1 of openPeriods)
+        for (const p2 of openPeriods)
+          if (p1 !== p2
+            && canPlace([unit.teachers[0]], 1, p1, empty, empty, empty, unit.solo)
+            && canPlace([unit.teachers[1]], 1, p2, empty, empty, empty, unit.solo)) n++;
+      return n;
+    }
+    return openPeriods.filter(p => canPlace(unit.teachers, unit.size, p, empty, empty, empty, unit.solo)).length;
+  }
+
+  // CSP backtracking — mutable state with undo for speed
+  const NODE_LIMIT = 200000;
+  let   nodes = 0;
+
+  function backtrack(idx, ordered, asgn, pCounts, tUsed, soloInPeriod, allowPool) {
+    if (nodes++ > NODE_LIMIT) return false;
+    if (idx === ordered.length)  return true;
+
+    const unit     = ordered[idx];
+    const shuffled = [...openPeriods].sort(() => Math.random() - 0.5);
+
+    if (unit.type === 'linked') {
+      // Try every (p1, p2) pair where p1 ≠ p2
+      for (const p1 of shuffled) {
+        if (!canPlace([unit.teachers[0]], 1, p1, pCounts, tUsed, soloInPeriod, false)) continue;
+        // Temporarily commit p1 so the inner p2 check sees the teacher as used
+        pCounts[p1] = (pCounts[p1] || 0) + 1;
+        if (!tUsed[unit.teachers[0]]) tUsed[unit.teachers[0]] = {};
+        tUsed[unit.teachers[0]][p1] = true;
+
+        for (const p2 of shuffled) {
+          if (p2 === p1) continue;
+          if (!canPlace([unit.teachers[1]], 1, p2, pCounts, tUsed, soloInPeriod, false)) continue;
+          asgn[unit.ids[0]] = p1; asgn[unit.ids[1]] = p2;
+          pCounts[p2] = (pCounts[p2] || 0) + 1;
+          if (!tUsed[unit.teachers[1]]) tUsed[unit.teachers[1]] = {};
+          tUsed[unit.teachers[1]][p2] = true;
+
+          if (backtrack(idx + 1, ordered, asgn, pCounts, tUsed, soloInPeriod, allowPool)) return true;
+
+          pCounts[p2]--;
+          delete tUsed[unit.teachers[1]][p2];
+        }
+
+        pCounts[p1]--;
+        delete tUsed[unit.teachers[0]][p1];
+      }
+      if (allowPool) {
+        asgn[unit.ids[0]] = 0; asgn[unit.ids[1]] = 0;
+        if (backtrack(idx + 1, ordered, asgn, pCounts, tUsed, soloInPeriod, allowPool)) return true;
+      }
+      return false;
+
+    } else {
+      // 'single' or 'group' — all ids go to the same period
+      for (const p of shuffled) {
+        if (!canPlace(unit.teachers, unit.size, p, pCounts, tUsed, soloInPeriod, unit.solo)) continue;
+        unit.ids.forEach(id => { asgn[id] = p; });
+        pCounts[p] = (pCounts[p] || 0) + unit.size;
+        unit.teachers.forEach(t => { if (!tUsed[t]) tUsed[t] = {}; tUsed[t][p] = true; });
+        if (unit.solo) soloInPeriod[p] = true;  // lock this period for solo course
+
+        if (backtrack(idx + 1, ordered, asgn, pCounts, tUsed, soloInPeriod, allowPool)) return true;
+
+        unit.ids.forEach(id => { delete asgn[id]; });
+        pCounts[p] -= unit.size;
+        unit.teachers.forEach(t => { delete tUsed[t][p]; });
+        if (unit.solo) delete soloInPeriod[p];  // release the lock on undo
+      }
+      if (allowPool) {
+        unit.ids.forEach(id => { asgn[id] = 0; });
+        if (backtrack(idx + 1, ordered, asgn, pCounts, tUsed, soloInPeriod, allowPool)) return true;
+        unit.ids.forEach(id => { delete asgn[id]; });
+      }
+      return false;
+    }
+  }
+
+  function evalScore(asgn) {
+    const saved = gradeStates[grade];
+    gradeStates[grade] = { ...asgn };
+    const n = computePaths().length;
+    gradeStates[grade] = saved;
+    // For HS grades, add a balance bonus as a tiebreaker: prefer solutions
+    // where courses are spread evenly across periods (lower variance = better).
+    if (grade >= 9) {
+      const counts = {};
+      openPeriods.forEach(p => { counts[p] = 0; });
+      Object.entries(asgn).forEach(([, p]) => { if (p > 0 && counts[p] !== undefined) counts[p]++; });
+      const vals = Object.values(counts);
+      const mean = vals.reduce((a, b) => a + b, 0) / Math.max(1, vals.length);
+      const variance = vals.reduce((acc, v) => acc + (v - mean) ** 2, 0) / Math.max(1, vals.length);
+      // Pathway count dominates; balance is the tiebreaker.
+      return n * 10000 - Math.round(variance * 100);
+    }
+    return n;
+  }
+
+  // Run multiple trials, keep the highest-scoring complete solution
+  let bestAsgn  = null;
+  let bestScore = -1;
+  const TRIALS  = 8;
+
+  for (let t = 0; t < TRIALS; t++) {
+    nodes = 0;
+    // MCV: fewest options first; small random tie-break for variety across trials
+    const ordered = [...units]
+      .map(u => ({ u, key: countOptions(u) + Math.random() * 0.5 }))
+      .sort((a, b) => a.key - b.key)
+      .map(x => x.u);
+
+    const asgn      = {};
+    const pCounts   = {};
+    const tUsed     = {};
+    const soloInP   = {};
+    gradeCourses.forEach(c => { asgn[c.id] = 0; });
+
+    // First pass: try to place every course (no pool)
+    let found = backtrack(0, ordered, asgn, pCounts, tUsed, soloInP, false);
+
+    // Second pass: allow pool as last resort if no complete solution found
+    if (!found) {
+      nodes = 0;
+      gradeCourses.forEach(c => { asgn[c.id] = 0; });
+      Object.keys(pCounts).forEach(k => { delete pCounts[k]; });
+      Object.keys(tUsed).forEach(k => { delete tUsed[k]; });
+      Object.keys(soloInP).forEach(k => { delete soloInP[k]; });
+      found = backtrack(0, ordered, asgn, pCounts, tUsed, soloInP, true);
+    }
+
+    gradeCourses.forEach(c => { if (asgn[c.id] === undefined) asgn[c.id] = 0; });
+    if (found) {
+      const s = evalScore(asgn);
+      if (s > bestScore) { bestScore = s; bestAsgn = { ...asgn }; }
+    }
+  }
+
+  // Apply result
+  if (bestAsgn) {
+    gradeCourses.forEach(c => { if (bestAsgn[c.id] === undefined) bestAsgn[c.id] = 0; });
+    gradeStates[grade] = bestAsgn;
+    render();
+    const placed = gradeCourses.filter(c => (bestAsgn[c.id] ?? 0) > 0).length;
+    const total  = gradeCourses.length;
+    const note   = document.getElementById('optNote');
+    note.textContent = `✓ Best arrangement: ${bestScore} pathway${bestScore !== 1 ? 's' : ''} (${placed}/${total} placed)`;
+    note.style.display = 'inline-block';
+    clearTimeout(window._optNoteTimer);
+    window._optNoteTimer = setTimeout(() => { note.style.display = 'none'; }, 6000);
+  } else {
+    const note = document.getElementById('optNote');
+    note.textContent = '⚠ No valid arrangement found — check teacher availability constraints';
+    note.style.display = 'inline-block';
+    clearTimeout(window._optNoteTimer);
+    window._optNoteTimer = setTimeout(() => { note.style.display = 'none'; }, 6000);
+  }
+}
+
+// ── Export ────────────────────────────────────────────────────────────────────
+function exportPDF() {
+  const date = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const paths = computePaths();
+  document.getElementById('printHeader').innerHTML =
+    `Grade ${currentGrade} Schedule <span>${paths.length} valid pathway${paths.length !== 1 ? 's' : ''} &nbsp;&middot;&nbsp; ${date}</span>`;
+  window.print();
+}
+
+// ── Saved designs ─────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'wcslions-schedule-designs';
+
+function getSaves() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+
+function setSaves(arr) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+}
+
+let saveScope = 'grade'; // 'grade' or 'all'
+
+function showSaveInput(scope) {
+  saveScope = scope || 'grade';
+  const row = document.getElementById('saveNameRow');
+  row.style.display = 'flex';
+  const field = document.getElementById('saveNameField');
+  field.value = '';
+  field.placeholder = saveScope === 'all' ? 'Name this full-package design…' : `Name this Grade ${currentGrade} design…`;
+  field.focus();
+}
+
+function hideSaveInput() {
+  document.getElementById('saveNameRow').style.display = 'none';
+  document.getElementById('saveNameField').value = '';
+}
+
+function confirmSave() {
+  const name = document.getElementById('saveNameField').value.trim();
+  if (!name) { document.getElementById('saveNameField').focus(); return; }
+  const saves = getSaves();
+  // For a grade-only save, snapshot just the current grade; for 'all', snapshot every grade
+  const snapshot = saveScope === 'all'
+    ? JSON.parse(JSON.stringify(gradeStates))
+    : { [currentGrade]: JSON.parse(JSON.stringify(gradeStates[currentGrade])) };
+  saves.unshift({
+    id: Date.now(),
+    name,
+    scope: saveScope,
+    grade: currentGrade,
+    date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+    states: snapshot,
+    soloIds: [...soloCourses],
+    crossEnrollData:  Object.entries(crossEnroll).map(([id, gradeSet]) => [parseInt(id), [...gradeSet]]),
+    courseBindData:   Object.entries(courseBindId).map(([id, grp]) => [parseInt(id), grp]),
+    userLinkedData:    Object.entries(userLinkedMap).filter(([id, pid]) => parseInt(id) < pid).map(([id, pid]) => [parseInt(id), pid]),
+    requirementsData:   Object.entries(gradeRequirements).map(([g, set]) => [parseInt(g), [...set]]),
+    activePeriodsData:  Object.entries(gradeActivePeriods).map(([g, set]) => [parseInt(g), [...set]]),
+  });
+  setSaves(saves);
+  hideSaveInput();
+  renderSaves();
+}
+
+function loadDesign(id) {
+  const s = getSaves().find(x => x.id === id);
+  if (!s) return;
+  // Restore only the grades present in the snapshot (grade-only saves won't overwrite other grades)
+  Object.keys(s.states).forEach(g => {
+    if (gradeStates[g] !== undefined) gradeStates[g] = JSON.parse(JSON.stringify(s.states[g]));
+  });
+  // Restore solo designations if the save includes them
+  if (s.soloIds) {
+    soloCourses.clear();
+    s.soloIds.forEach(id => soloCourses.add(id));
+  }
+  // Restore cross-enrollment designations
+  Object.keys(crossEnroll).forEach(k => delete crossEnroll[k]);
+  if (s.crossEnrollData) {
+    s.crossEnrollData.forEach(([id, grades]) => { crossEnroll[id] = new Set(grades); });
+  }
+  // Restore user bind groups
+  Object.keys(courseBindId).forEach(k => delete courseBindId[k]);
+  if (s.courseBindData) {
+    s.courseBindData.forEach(([id, grp]) => { courseBindId[id] = grp; });
+  }
+  // Restore user double-block links
+  // Remove user-set linkedId from course objects before clearing the map
+  Object.keys(userLinkedMap).forEach(idStr => {
+    const partnerId = userLinkedMap[idStr];
+    const c = COURSES.find(x => x.id === parseInt(idStr));
+    if (c && c.linkedId === partnerId) delete c.linkedId;
+  });
+  Object.keys(userLinkedMap).forEach(k => delete userLinkedMap[k]);
+  if (s.userLinkedData) {
+    s.userLinkedData.forEach(([id, pid]) => {
+      userLinkedMap[id]  = pid;
+      userLinkedMap[pid] = id;
+      const c1 = COURSES.find(c => c.id === id);
+      const c2 = COURSES.find(c => c.id === pid);
+      if (c1) c1.linkedId = pid;
+      if (c2) c2.linkedId = id;
+    });
+  }
+  // Restore subject requirements
+  if (s.requirementsData) {
+    s.requirementsData.forEach(([g, subjs]) => { gradeRequirements[g] = new Set(subjs); });
+  }
+  // Restore active periods
+  if (s.activePeriodsData) {
+    s.activePeriodsData.forEach(([g, periods]) => { gradeActivePeriods[g] = new Set(periods); });
+  }
+  currentGrade = s.grade;
+  render();
+}
+
+function updateDesign(id) {
+  const saves = getSaves();
+  const idx   = saves.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  const s       = saves[idx];
+  const snapshot = s.scope === 'all'
+    ? JSON.parse(JSON.stringify(gradeStates))
+    : { [currentGrade]: JSON.parse(JSON.stringify(gradeStates[currentGrade])) };
+  saves[idx] = {
+    ...s,
+    date:            new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    time:            new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+    states:          snapshot,
+    soloIds:         [...soloCourses],
+    crossEnrollData: Object.entries(crossEnroll).map(([cid, gs]) => [parseInt(cid), [...gs]]),
+    courseBindData:  Object.entries(courseBindId).map(([cid, grp]) => [parseInt(cid), grp]),
+    userLinkedData:   Object.entries(userLinkedMap).filter(([id, pid]) => parseInt(id) < pid).map(([id, pid]) => [parseInt(id), pid]),
+    requirementsData:  Object.entries(gradeRequirements).map(([g, set]) => [parseInt(g), [...set]]),
+    activePeriodsData: Object.entries(gradeActivePeriods).map(([g, set]) => [parseInt(g), [...set]]),
+  };
+  setSaves(saves);
+  renderSaves();
+}
+
+function deleteDesign(id) {
+  if (!confirm('Delete this saved design?')) return;
+  setSaves(getSaves().filter(x => x.id !== id));
+  renderSaves();
+}
+
+function renderSaves() {
+  const saves = getSaves();
+  const el = document.getElementById('designList');
+  if (!saves.length) {
+    el.innerHTML = '<p class="empty-msg">No saved designs yet. Use "Save this grade" to snapshot the active grade, or "Save all grades" to save the full package.</p>';
+    return;
+  }
+  el.innerHTML = saves.map(s => `
+    <div class="design-item">
+      <div class="design-item-info">
+        <div class="design-item-name">${s.name}</div>
+        <div class="design-item-meta">${s.scope === 'all' ? 'All grades' : `Grade ${s.grade}`} &nbsp;·&nbsp; ${s.date} at ${s.time}</div>
+      </div>
+      <div class="design-item-actions">
+        <button class="reset-btn" onclick="loadDesign(${s.id})">Load</button>
+        <button class="reset-btn" onclick="updateDesign(${s.id})" title="Overwrite this save with the current state">Update</button>
+        <button class="del-btn" onclick="deleteDesign(${s.id})">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Allow Enter key to confirm the save name
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('saveNameField').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); confirmSave(); }
+    if (e.key === 'Escape') { e.preventDefault(); hideSaveInput(); }
+  });
+});
+
+// ── Defaults ──────────────────────────────────────────────────────────────────
+// 11th grade Bible (603) and College Prep (611) default to solo period.
+soloCourses.add(603);
+soloCourses.add(611);
+// 11th grade Honors Pre-Cal (601) defaults as cross-enrollable by 12th grade.
+crossEnroll[601] = new Set([12]);
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+render();
+renderSaves();
+</script>
+</body>
+</html>
