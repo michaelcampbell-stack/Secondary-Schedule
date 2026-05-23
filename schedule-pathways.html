@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schedule Pathway</title>
+<style>
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f4f0;
+    --text-primary: #1a1918;
+    --text-secondary: #5f5e5a;
+    --text-tertiary: #888780;
+    --border-primary: rgba(0,0,0,0.4);
+    --border-secondary: rgba(0,0,0,0.3);
+    --border-tertiary: rgba(0,0,0,0.15);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-primary: #1e1d1b;
+      --bg-secondary: #2a2926;
+      --text-primary: #f0ede8;
+      --text-secondary: #a09e99;
+      --text-tertiary: #666460;
+      --border-primary: rgba(255,255,255,0.4);
+      --border-secondary: rgba(255,255,255,0.25);
+      --border-tertiary: rgba(255,255,255,0.12);
+    }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 28px 20px;
+  }
+
+  .container {
+    max-width: 1320px;
+    margin: 0 auto;
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    border: 0.5px solid var(--border-tertiary);
+    padding: 24px 24px 32px;
+  }
+
+  h1 { font-size: 18px; font-weight: 500; color: var(--text-primary); margin-bottom: 3px; }
+  .subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 18px; }
+
+  /* ── Grade tabs ── */
+  .grade-tabs {
+    display: flex;
+    gap: 3px;
+    margin-bottom: 0;
+    border-bottom: 0.5px solid var(--border-tertiary);
+    padding-bottom: 0;
+    margin-bottom: -1px;
+  }
+  .gtab {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 13px;
+    border-radius: 6px 6px 0 0;
+    border: 0.5px solid transparent;
+    border-bottom: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    background: transparent;
+    position: relative;
+    bottom: -1px;
+    white-space: nowrap;
+  }
+  .gtab:hover { color: var(--text-primary); }
+  .gtab.active {
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border-color: var(--border-tertiary);
+  }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    margin-bottom: 12px;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 5px; flex: 1; }
+  .conflict-note {
+    font-size: 11px;
+    color: #A32D2D;
+    background: #FCEBEB;
+    border-radius: 4px;
+    padding: 3px 8px;
+    display: none;
+  }
+  @media (prefers-color-scheme: dark) {
+    .conflict-note { color: #F7C1C1; background: #501313; }
+  }
+  .reset-btn {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 0.5px solid var(--border-secondary);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .reset-btn:hover { background: var(--bg-secondary); }
+
+  /* ── Schedule grid ── */
+  .sg-wrap { overflow-x: auto; padding-bottom: 4px; }
+  .sg {
+    display: grid;
+    grid-template-columns: 80px repeat(8, minmax(110px, 1fr));
+    gap: 5px;
+    margin-bottom: 20px;
+    min-width: 980px;
+  }
+
+  .sc {
+    border: 1.5px dashed var(--border-secondary);
+    border-radius: var(--radius-md);
+    padding: 6px;
+    min-height: 150px;
+    transition: border-color .1s, background .1s;
+  }
+  .sc.over    { border-style: solid; border-color: #378ADD; background: #E6F1FB; }
+  .sc.blocked { border-style: solid; border-color: #E24B4A; background: #FCEBEB; }
+  @media (prefers-color-scheme: dark) {
+    .sc.over    { background: #042C53; }
+    .sc.blocked { background: #501313; }
+  }
+
+  .sh {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    text-align: center;
+    padding-bottom: 5px;
+    border-bottom: 0.5px solid var(--border-tertiary);
+    margin-bottom: 5px;
+  }
+
+  .cc {
+    background: var(--bg-primary);
+    border: 0.5px solid var(--border-secondary);
+    border-radius: 5px;
+    padding: 4px 5px;
+    margin-bottom: 3px;
+    cursor: grab;
+    font-size: 10px;
+    user-select: none;
+  }
+  .cc:hover { border-color: var(--border-primary); }
+  .cc.drag  { opacity: .25; }
+  .cn { font-weight: 500; color: var(--text-primary); line-height: 1.3; }
+  .ct { color: var(--text-tertiary); font-size: 9px; margin-top: 1px; }
+  .ck {
+    display: inline-block;
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-top: 2px;
+  }
+
+  /* Subject colors */
+  .k-math     { background: #E6F1FB; color: #185FA5; }
+  .k-english  { background: #EAF3DE; color: #3B6D11; }
+  .k-science  { background: #FAEEDA; color: #854F0B; }
+  .k-bible    { background: #EEEDFE; color: #3C3489; }
+  .k-gov      { background: #FAECE7; color: #712B13; }
+  .k-history  { background: #F3EDE5; color: #6B3E1A; }
+  .k-spanish  { background: #E0F5F5; color: #0E6B6B; }
+  .k-grammar  { background: #F0F7E0; color: #4A7A00; }
+  .k-reading  { background: #E0F0E8; color: #1E5E30; }
+  .k-elective { background: #EFEFEF; color: #555555; }
+  @media (prefers-color-scheme: dark) {
+    .k-math     { background: #042C53; color: #B5D4F4; }
+    .k-english  { background: #173404; color: #C0DD97; }
+    .k-science  { background: #412402; color: #FAC775; }
+    .k-bible    { background: #26215C; color: #CECBF6; }
+    .k-gov      { background: #4A1B0C; color: #F5C4B3; }
+    .k-history  { background: #3D2510; color: #E0BA98; }
+    .k-spanish  { background: #003838; color: #7FD4D4; }
+    .k-grammar  { background: #283B00; color: #C5E07A; }
+    .k-reading  { background: #0A3318; color: #7EC9A0; }
+    .k-elective { background: #2A2926; color: #999793; }
+  }
+
+  .pool-hint {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-style: italic;
+    padding: 4px 2px;
+    line-height: 1.4;
+  }
+
+  /* ── Pathway panel ── */
+  .pathway-panel { border-top: 0.5px solid var(--border-tertiary); padding-top: 16px; }
+  .pcount-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; }
+  .pcount { font-size: 36px; font-weight: 500; color: var(--text-primary); line-height: 1; }
+  .pcount-label { font-size: 13px; color: var(--text-secondary); }
+
+  .ptbl-wrap { overflow-x: auto; }
+  .ptbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    min-width: 400px;
+  }
+  .ptbl th {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: 5px 8px;
+    border-bottom: 0.5px solid var(--border-secondary);
+    text-align: left;
+    white-space: nowrap;
+  }
+  .ptbl td {
+    padding: 5px 8px;
+    border-bottom: 0.5px solid var(--border-tertiary);
+    vertical-align: middle;
+  }
+  .ptbl tr:last-child td { border-bottom: none; }
+  .ptbl tr:hover td { background: var(--bg-secondary); }
+  .period-badge {
+    font-size: 9px;
+    color: var(--text-tertiary);
+    margin-left: 4px;
+  }
+
+  .empty-msg { font-size: 13px; color: var(--text-tertiary); padding: 6px 0; }
+
+  /* ── Saved designs ── */
+  .saves-panel {
+    border-top: 0.5px solid var(--border-tertiary);
+    padding-top: 16px;
+    margin-top: 16px;
+  }
+  .saves-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .saves-title { font-size: 13px; font-weight: 500; color: var(--text-primary); flex: 1; }
+  .save-name-row {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .save-name-field {
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border: 0.5px solid var(--border-primary);
+    border-radius: 6px;
+    padding: 4px 9px;
+    outline: none;
+    width: 200px;
+  }
+  .design-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 0;
+    border-bottom: 0.5px solid var(--border-tertiary);
+  }
+  .design-item:last-child { border-bottom: none; }
+  .design-item-info { flex: 1; }
+  .design-item-name { font-size: 12px; font-weight: 500; color: var(--text-primary); }
+  .design-item-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; }
+  .design-item-actions { display: flex; gap: 5px; }
+  .del-btn {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 0.5px solid var(--border-secondary);
+    background: transparent;
+    color: #A32D2D;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .del-btn:hover { background: #FCEBEB; }
+  @media (prefers-color-scheme: dark) {
+    .del-btn { color: #F7C1C1; }
+    .del-btn:hover { background: #501313; }
+  }
+
+  /* ── Inline editing ── */
+  .cn, .ct { border-radius: 2px; transition: background .1s; }
+  .cn:hover, .ct:hover { background: var(--bg-secondary); cursor: context-menu; }
+  .edit-input {
+    width: 100%;
+    font-size: inherit;
+    font-family: inherit;
+    font-weight: inherit;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 3px;
+    padding: 1px 4px;
+    outline: none;
+    box-sizing: border-box;
+  }
+  @media print { .cn:hover, .ct:hover { background: transparent; } }
+
+  .export-btn {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 0.5px solid var(--border-secondary);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .export-btn:hover { background: var(--bg-secondary); }
+
+  /* ── Print styles ── */
+  .print-header { display: none; }
+
+  @media print {
+    body { background: white !important; padding: 4px 8px; }
+    .container { border: none; border-radius: 0; padding: 0; max-width: 100%; box-shadow: none; }
+    .grade-tabs, .toolbar, #pool-col { display: none !important; }
+    .print-header { display: block; font-size: 15px; font-weight: 500; margin-bottom: 10px; }
+    .print-header span { font-size: 12px; font-weight: 400; color: #666; margin-left: 8px; }
+    .sg-wrap { overflow: visible; }
+    .sg { min-width: unset !important; grid-template-columns: repeat(8, 1fr) !important; gap: 4px; margin-bottom: 14px; }
+    .sc { min-height: 60px; page-break-inside: avoid; }
+    .cc { cursor: default; }
+    .pathway-panel { border-top: 0.5px solid #ccc; }
+    .ptbl-wrap { overflow: visible; }
+    .ptbl { min-width: unset; }
+    h1, .subtitle { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>Schedule Pathway</h1>
+  <p class="subtitle">Select a grade, then drag course cards from the pool into period columns. Pathways update live as you build.</p>
+
+  <div class="print-header" id="printHeader"></div>
+
+  <div class="grade-tabs" id="gradeTabs"></div>
+
+  <div class="toolbar">
+    <div class="legend" id="legend"></div>
+    <span class="conflict-note" id="cnote">Same teacher already in that period</span>
+    <button class="reset-btn" onclick="resetGrade()">Reset grade</button>
+    <button class="export-btn" onclick="exportPDF()">Export PDF</button>
+  </div>
+
+  <div class="sg-wrap">
+    <div class="sg" id="sg"></div>
+  </div>
+
+  <div class="pathway-panel">
+    <div class="pcount-row">
+      <span class="pcount" id="pn">0</span>
+      <span class="pcount-label" id="plabel">valid pathways</span>
+    </div>
+    <div class="ptbl-wrap">
+      <div id="pl"></div>
+    </div>
+  </div>
+
+  <div class="saves-panel">
+    <div class="saves-header">
+      <span class="saves-title">Saved Designs</span>
+      <button class="reset-btn" onclick="showSaveInput()">Save current design</button>
+    </div>
+    <div class="save-name-row" id="saveNameRow">
+      <input id="saveNameField" class="save-name-field" type="text" placeholder="Name this design…" maxlength="60">
+      <button class="reset-btn" onclick="confirmSave()">Save</button>
+      <button class="reset-btn" onclick="hideSaveInput()">Cancel</button>
+    </div>
+    <div id="designList"></div>
+  </div>
+
+</div>
+<script>
+// ── Course data ───────────────────────────────────────────────────────────────
+const COURSES = [
+  // ── Grade 6 ── (Math A and Math B each meet for two periods; §1/§2 are the same course)
+  {id:101, name:'Math A §1',         teacher:'Hinshaw',    subject:'math',    grade:6, linkedId:102},
+  {id:102, name:'Math A §2',         teacher:'Hinshaw',    subject:'math',    grade:6, linkedId:101},
+  {id:103, name:'Math B §1',         teacher:'Hinshaw',    subject:'math',    grade:6, linkedId:104},
+  {id:104, name:'Math B §2',         teacher:'Hinshaw',    subject:'math',    grade:6, linkedId:103},
+  {id:105, name:'Bible Boys',        teacher:'Cunningham', subject:'bible',   grade:6, groupId:'g6-bible', groupLabel:'Bible'},
+  {id:106, name:'Bible',             teacher:'Edwards',    subject:'bible',   grade:6, groupId:'g6-bible', groupLabel:'Bible'},
+  {id:107, name:'Science §1',        teacher:'Noble',      subject:'science', grade:6},
+  {id:108, name:'Science §2',        teacher:'Noble',      subject:'science', grade:6},
+  {id:109, name:'History §1',        teacher:'Noble',      subject:'history', grade:6},
+  {id:110, name:'History §2',        teacher:'Noble',      subject:'history', grade:6},
+  {id:111, name:'Grammar A',         teacher:'Edwards',    subject:'grammar', grade:6, pairedWith:113, groupLabel:'ELA A'},
+  {id:112, name:'Grammar B',         teacher:'Edwards',    subject:'grammar', grade:6, pairedWith:114, groupLabel:'ELA B'},
+  {id:113, name:'Reading A',         teacher:'Edwards',    subject:'reading', grade:6, pairedWith:111, isPairedSecondary:true, groupLabel:'ELA A'},
+  {id:114, name:'Reading B',         teacher:'Edwards',    subject:'reading', grade:6, pairedWith:112, isPairedSecondary:true, groupLabel:'ELA B'},
+
+  // ── Grade 7 ── (Pre-Algebra and Math A each meet for two periods; §1/§2 are the same course)
+  {id:201, name:'Pre-Algebra §1',    teacher:'Cunningham', subject:'math',    grade:7, linkedId:202},
+  {id:202, name:'Pre-Algebra §2',    teacher:'Cunningham', subject:'math',    grade:7, linkedId:201},
+  {id:203, name:'Math A §1',         teacher:'Hinshaw',    subject:'math',    grade:7, linkedId:204},
+  {id:204, name:'Math A §2',         teacher:'Hinshaw',    subject:'math',    grade:7, linkedId:203},
+  {id:205, name:'Bible §1',          teacher:'Wade',       subject:'bible',   grade:7},
+  {id:206, name:'Bible §2',          teacher:'Wade',       subject:'bible',   grade:7},
+  {id:207, name:'Life Science §1',   teacher:'Dennis',     subject:'science', grade:7},
+  {id:208, name:'Life Science §2',   teacher:'Dennis',     subject:'science', grade:7},
+  {id:209, name:'History §1',        teacher:'Richards',   subject:'history', grade:7},
+  {id:210, name:'History §2',        teacher:'Richards',   subject:'history', grade:7},
+  {id:211, name:'Grammar A',         teacher:'Polk',       subject:'grammar', grade:7, pairedWith:213, groupLabel:'ELA A'},
+  {id:212, name:'Grammar B',         teacher:'Polk',       subject:'grammar', grade:7, pairedWith:214, groupLabel:'ELA B'},
+  {id:213, name:'Reading A',         teacher:'Polk',       subject:'reading', grade:7, pairedWith:211, isPairedSecondary:true, groupLabel:'ELA A'},
+  {id:214, name:'Reading B',         teacher:'Polk',       subject:'reading', grade:7, pairedWith:212, isPairedSecondary:true, groupLabel:'ELA B'},
+
+  // ── Grade 8 ──
+  {id:301, name:'Pre-Algebra §1',    teacher:'Cunningham', subject:'math',    grade:8, linkedId:302},
+  {id:302, name:'Pre-Algebra §2',    teacher:'Cunningham', subject:'math',    grade:8, linkedId:301},
+  {id:303, name:'Algebra I',         teacher:'Chapman',    subject:'math',    grade:8, pairedWith:313},
+  {id:304, name:'Bible',             teacher:'Fowler',     subject:'bible',   grade:8},
+  {id:305, name:'Science §1',        teacher:'Noble',      subject:'science', grade:8},
+  {id:306, name:'Science §2',        teacher:'Noble',      subject:'science', grade:8},
+  {id:307, name:'History §1',        teacher:'McElvy',     subject:'history', grade:8},
+  {id:308, name:'History §2',        teacher:'McElvy',     subject:'history', grade:8},
+  {id:309, name:'English (H) §1',    teacher:'Fell',       subject:'english', grade:8, linkedId:310},
+  {id:310, name:'English (H) §2',    teacher:'Fell',       subject:'english', grade:8, linkedId:309},
+  {id:311, name:'English §1',        teacher:'Day',        subject:'english', grade:8, linkedId:312},
+  {id:312, name:'English §2',        teacher:'Day',        subject:'english', grade:8, linkedId:311},
+  {id:313, name:'Spanish I',         teacher:'Shearer',    subject:'spanish', grade:8, pairedWith:303, isPairedSecondary:true},
+
+  // ── Grade 9 ──
+  {id:401, name:'Algebra I',         teacher:'Chapman',    subject:'math',    grade:9},
+  {id:402, name:'Geometry (H)',      teacher:'Rogers',     subject:'math',    grade:9},
+  {id:403, name:'Bible §1',          teacher:'Wade',       subject:'bible',   grade:9},
+  {id:404, name:'Bible §2',          teacher:'Wade',       subject:'bible',   grade:9},
+  {id:405, name:'Biology §1',        teacher:'Dennis',     subject:'science', grade:9},
+  {id:406, name:'Biology §2',        teacher:'Dennis',     subject:'science', grade:9},
+  {id:407, name:'History §1',        teacher:'Richards',   subject:'history', grade:9},
+  {id:408, name:'History §2',        teacher:'Richards',   subject:'history', grade:9},
+  {id:409, name:'English (H)',       teacher:'Lynch',      subject:'english', grade:9},
+  {id:410, name:'English',           teacher:'Fell',       subject:'english', grade:9},
+  {id:411, name:'Spanish I',         teacher:'Shearer',    subject:'spanish', grade:9},
+  {id:412, name:'Spanish II',        teacher:'Shearer',    subject:'spanish', grade:9},
+
+  // ── Grade 10 ──
+  {id:501, name:'Geometry',          teacher:'Rogers',     subject:'math',    grade:10},
+  {id:502, name:'Algebra II (H)',    teacher:'Chapman',    subject:'math',    grade:10},
+  {id:503, name:'Bible §1',          teacher:'Fowler',     subject:'bible',   grade:10},
+  {id:504, name:'Bible §2',          teacher:'Fowler',     subject:'bible',   grade:10},
+  {id:505, name:'Chemistry §1',      teacher:'Einstein',   subject:'science', grade:10},
+  {id:506, name:'Chemistry §2',      teacher:'Einstein',   subject:'science', grade:10},
+  {id:507, name:'History §1',        teacher:'McElvy',     subject:'history', grade:10},
+  {id:508, name:'History §2',        teacher:'McElvy',     subject:'history', grade:10},
+  {id:509, name:'English (H)',       teacher:'Lynch',      subject:'english', grade:10},
+  {id:510, name:'English II',        teacher:'Lynch',      subject:'english', grade:10},
+  {id:511, name:'Speech',            teacher:'Day',        subject:'spanish', grade:10, groupId:'g10-speechtech', groupLabel:'Speech / Tech'},
+  {id:512, name:'Spanish II',        teacher:'Shearer',    subject:'spanish', grade:10},
+  {id:513, name:'Tech',              teacher:'Snow',       subject:'spanish', grade:10, groupId:'g10-speechtech', groupLabel:'Speech / Tech'},
+
+  // ── Grade 11 ──
+  {id:601, name:'Pre-Calculus (H)',  teacher:'Rogers',     subject:'math',    grade:11},
+  {id:602, name:'Algebra II',        teacher:'Chapman',    subject:'math',    grade:11},
+  {id:603, name:'Bible',             teacher:'Wade',       subject:'bible',   grade:11},
+  {id:604, name:'Physics §1',        teacher:'Einstein',   subject:'science', grade:11},
+  {id:605, name:'Physics §2',        teacher:'Einstein',   subject:'science', grade:11},
+  {id:606, name:'History',           teacher:'McElvy',     subject:'history', grade:11},
+  {id:607, name:'DE History',        teacher:'Cowan',      subject:'history', grade:11},
+  {id:608, name:'English',           teacher:'Fell',       subject:'english', grade:11},
+  {id:609, name:'DE English 1301',   teacher:'Fell',       subject:'english', grade:11},
+  {id:610, name:'Spanish III',       teacher:'Shearer',    subject:'spanish', grade:11},
+  {id:611, name:'College Prep',      teacher:'Harper',     subject:'elective',grade:11},
+
+  // ── Grade 12 ──
+  {id:701, name:'DE College Math / Statistics', teacher:'Moe',    subject:'math',    grade:12},
+  {id:702, name:'Pre-Calculus',      teacher:'Rogers',     subject:'math',    grade:12},
+  {id:703, name:'Bible §1',          teacher:'Fowler',     subject:'bible',   grade:12},
+  {id:704, name:'Bible §2',          teacher:'Fowler',     subject:'bible',   grade:12},
+  {id:705, name:'Forensics',         teacher:'Einstein',   subject:'science', grade:12},
+  {id:706, name:'DE Biology 1408',   teacher:'Dennis',     subject:'science', grade:12},
+  {id:707, name:'Government',        teacher:'Cowan',      subject:'gov',     grade:12},
+  {id:708, name:'DE Government',     teacher:'Cowan',      subject:'gov',     grade:12},
+  {id:709, name:'English IV',        teacher:'Lynch',      subject:'english', grade:12},
+  {id:710, name:'AP English IV',     teacher:'Lynch',      subject:'english', grade:12},
+];
+
+// ── Config ────────────────────────────────────────────────────────────────────
+const GRADES = [6, 7, 8, 9, 10, 11, 12];
+
+// Required subjects per grade — these define what must be covered for a valid pathway.
+// Electives are intentionally excluded from pathway requirements.
+const GRADE_SUBJECTS = {
+  6:  ['math', 'bible', 'science', 'history', 'grammar', 'reading'],
+  7:  ['math', 'bible', 'science', 'history', 'grammar', 'reading'],
+  8:  ['math', 'bible', 'science', 'history', 'english'],
+  9:  ['math', 'bible', 'science', 'history', 'english', 'spanish'],
+  10: ['math', 'bible', 'science', 'history', 'english', 'spanish'],
+  11: ['math', 'bible', 'science', 'history', 'english', 'spanish'],
+  12: ['math', 'bible', 'science', 'english', 'gov'],
+};
+
+const SUBJ_LABEL = {
+  math:'Math', english:'English', science:'Science', bible:'Bible',
+  gov:'Gov', history:'History', spanish:'Spanish',
+  grammar:'Grammar', reading:'Reading', elective:'Elective',
+};
+
+const PERIODS = [
+  {p:0, label:'Pool'},
+  {p:1, label:'1st'}, {p:2, label:'2nd'}, {p:3, label:'3rd'}, {p:4, label:'4th'},
+  {p:5, label:'5th'}, {p:6, label:'6th'}, {p:7, label:'7th'}, {p:8, label:'8th'},
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+// gradeStates[grade][courseId] = period (0 = pool)
+const gradeStates = {};
+GRADES.forEach(g => {
+  gradeStates[g] = {};
+  COURSES.filter(c => c.grade === g).forEach(c => { gradeStates[g][c.id] = 0; });
+});
+
+let currentGrade = 6;
+let draggingId = null;
+let noteTimer = null;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function getPeriod(courseId) {
+  return gradeStates[currentGrade][courseId] ?? 0;
+}
+
+function canDrop(targetPeriod, courseId) {
+  if (targetPeriod === 0) return true;
+  const drag = COURSES.find(c => c.id === courseId);
+  if (!drag) return false;
+  const st = gradeStates[currentGrade];
+  return !COURSES.some(c =>
+    c.grade === currentGrade &&
+    c.id !== courseId &&
+    c.teacher === drag.teacher &&
+    (st[c.id] ?? 0) === targetPeriod
+  );
+}
+
+function showConflictNote() {
+  const el = document.getElementById('cnote');
+  el.style.display = 'inline-block';
+  clearTimeout(noteTimer);
+  noteTimer = setTimeout(() => { el.style.display = 'none'; }, 2200);
+}
+
+function resetGrade() {
+  COURSES.filter(c => c.grade === currentGrade).forEach(c => {
+    gradeStates[currentGrade][c.id] = 0;
+  });
+  render();
+}
+
+function switchGrade(g) {
+  currentGrade = g;
+  render();
+}
+
+// ── Pathway computation ───────────────────────────────────────────────────────
+function computePaths() {
+  const subjects = GRADE_SUBJECTS[currentGrade];
+  const st = gradeStates[currentGrade];
+  const gradeCourses = COURSES.filter(c => c.grade === currentGrade);
+
+  // Build candidate list per subject, applying three rules:
+  //   1. Double-period linked courses (linkedId): only the primary half (lower id) is included;
+  //      valid only when both halves are placed.
+  //   2. Gender-split grouped courses (groupId): deduplicated per period so boys/girls
+  //      sections in the same period count as one option.
+  //   3. Paired-subject secondaries (isPairedSecondary): excluded from independent
+  //      selection — they are automatically committed when their driver is chosen.
+  const bySubject = {};
+  subjects.forEach(s => {
+    const candidates = gradeCourses.filter(c => {
+      if (c.subject !== s) return false;
+      if ((st[c.id] ?? 0) === 0) return false;
+      if (c.isPairedSecondary) return false;                      // driven by its pair
+      if (c.linkedId && c.id > c.linkedId) return false;         // skip secondary double-period half
+      if (c.linkedId && c.id < c.linkedId) {
+        const sec = COURSES.find(x => x.id === c.linkedId);
+        if (!sec || (st[sec.id] ?? 0) === 0) return false;       // both halves must be placed
+      }
+      return true;
+    });
+
+    const seenGroupPeriods = new Set();
+    bySubject[s] = candidates.filter(c => {
+      if (!c.groupId) return true;
+      const key = `${c.groupId}-${st[c.id] ?? 0}`;
+      if (seenGroupPeriods.has(key)) return false;
+      seenGroupPeriods.add(key);
+      return true;
+    });
+  });
+
+  const results = [];
+
+  // preFilled tracks subjects already committed by a paired-subject selection so
+  // the recursion can skip them rather than trying to fill them independently.
+  function rec(si, chosen, usedPeriods, preFilled) {
+    if (si === subjects.length) {
+      results.push([...chosen]);
+      return;
+    }
+    const subj = subjects[si];
+
+    // Subject already committed (e.g. Reading filled when Grammar was chosen)
+    if (preFilled.has(subj)) {
+      rec(si + 1, chosen, usedPeriods, preFilled);
+      return;
+    }
+
+    for (const c of (bySubject[subj] || [])) {
+      const p = st[c.id] ?? 0;
+
+      // Double-period secondary (same subject, second meeting period)
+      const sec  = c.linkedId ? COURSES.find(x => x.id === c.linkedId) : null;
+      const secP = sec ? (st[sec.id] ?? 0) : 0;
+
+      // Paired-subject companion (different subject that must travel with this course)
+      const pair  = (c.pairedWith && !c.isPairedSecondary) ? COURSES.find(x => x.id === c.pairedWith) : null;
+      const pairP = pair ? (st[pair.id] ?? 0) : 0;
+
+      if (pair && pairP === 0) continue;           // companion must be placed
+      if (pair && pairP === p) continue;           // can't share same period
+      if (usedPeriods.has(p)) continue;
+      if (secP  && usedPeriods.has(secP))  continue;
+      if (pairP && usedPeriods.has(pairP)) continue;
+
+      usedPeriods.add(p);
+      if (secP)  usedPeriods.add(secP);
+      if (pairP) usedPeriods.add(pairP);
+
+      chosen.push({ course: c, period: p, sec, secP: secP || null });
+      if (pair) chosen.push({ course: pair, period: pairP, sec: null, secP: null });
+      if (pair) preFilled.add(pair.subject);
+
+      rec(si + 1, chosen, usedPeriods, preFilled);
+
+      if (pair) preFilled.delete(pair.subject);
+      if (pair) chosen.pop();
+      chosen.pop();
+
+      usedPeriods.delete(p);
+      if (secP)  usedPeriods.delete(secP);
+      if (pairP) usedPeriods.delete(pairP);
+    }
+  }
+
+  rec(0, [], new Set(), new Set());
+  return results;
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function clearColStates() {
+  document.querySelectorAll('.sc').forEach(el => el.classList.remove('over', 'blocked'));
+}
+
+function render() {
+  // Grade tabs
+  document.getElementById('gradeTabs').innerHTML = GRADES.map(g =>
+    `<button class="gtab${g === currentGrade ? ' active' : ''}" onclick="switchGrade(${g})">Grade ${g}</button>`
+  ).join('');
+
+  // Legend
+  const subjects = GRADE_SUBJECTS[currentGrade];
+  const legendSubjects = [...subjects];
+  if (COURSES.some(c => c.grade === currentGrade && c.subject === 'elective')) {
+    legendSubjects.push('elective');
+  }
+  document.getElementById('legend').innerHTML = legendSubjects
+    .map(s => `<span class="ck k-${s}">${SUBJ_LABEL[s]}</span>`)
+    .join('');
+
+  // Grid
+  const grid = document.getElementById('sg');
+  grid.innerHTML = '';
+
+  PERIODS.forEach(({ p, label }) => {
+    const col = document.createElement('div');
+    col.className = 'sc';
+    if (p === 0) col.id = 'pool-col';
+    col.innerHTML = `<div class="sh">${label}</div>`;
+
+    col.addEventListener('dragover', e => {
+      e.preventDefault();
+      clearColStates();
+      if (draggingId !== null && !canDrop(p, draggingId)) {
+        e.dataTransfer.dropEffect = 'none';
+        col.classList.add('blocked');
+      } else {
+        e.dataTransfer.dropEffect = 'move';
+        col.classList.add('over');
+      }
+    });
+
+    col.addEventListener('dragleave', e => {
+      if (!col.contains(e.relatedTarget)) col.classList.remove('over', 'blocked');
+    });
+
+    col.addEventListener('drop', e => {
+      e.preventDefault();
+      col.classList.remove('over', 'blocked');
+      const id = parseInt(e.dataTransfer.getData('text/plain'));
+      if (!canDrop(p, id)) { showConflictNote(); return; }
+      gradeStates[currentGrade][id] = p;
+      render();
+    });
+
+    const coursesHere = COURSES.filter(c => c.grade === currentGrade && getPeriod(c.id) === p);
+
+    if (p === 0 && coursesHere.length === 0) {
+      col.innerHTML += `<p class="pool-hint">Drag courses here to return them to the pool.</p>`;
+    }
+
+    coursesHere.forEach(c => {
+      const card = document.createElement('div');
+      card.className = 'cc';
+      card.draggable = true;
+      const dbl = c.linkedId ? `<span style="font-size:9px;color:var(--text-tertiary);margin-left:4px">2×</span>` : '';
+      const displayName = c.groupLabel || c.name;
+      card.innerHTML =
+        `<div class="cn" title="Right-click to edit">${displayName}${dbl}</div>` +
+        `<div class="ct" title="Right-click to edit">${c.teacher}</div>` +
+        `<span class="ck k-${c.subject}">${SUBJ_LABEL[c.subject]}</span>`;
+
+      // Inline editing: right-click name edits groupLabel (if set) or name; right-click teacher edits teacher
+      card.querySelector('.cn').addEventListener('contextmenu', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        makeEditable(card.querySelector('.cn'), c, c.groupLabel !== undefined ? 'groupLabel' : 'name', card);
+      });
+      card.querySelector('.ct').addEventListener('contextmenu', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        makeEditable(card.querySelector('.ct'), c, 'teacher', card);
+      });
+
+      card.addEventListener('dragstart', e => {
+        draggingId = c.id;
+        e.dataTransfer.setData('text/plain', String(c.id));
+        e.dataTransfer.effectAllowed = 'move';
+        requestAnimationFrame(() => card.classList.add('drag'));
+      });
+
+      card.addEventListener('dragend', () => {
+        draggingId = null;
+        card.classList.remove('drag');
+        clearColStates();
+      });
+
+      col.appendChild(card);
+    });
+
+    grid.appendChild(col);
+  });
+
+  // Pathways
+  const paths = computePaths();
+  document.getElementById('pn').textContent = paths.length;
+  document.getElementById('plabel').textContent = paths.length === 1 ? 'valid pathway' : 'valid pathways';
+
+  const pl = document.getElementById('pl');
+
+  if (!paths.length) {
+    const allInPool = COURSES
+      .filter(c => c.grade === currentGrade)
+      .every(c => getPeriod(c.id) === 0);
+    pl.innerHTML = allInPool
+      ? '<p class="empty-msg">Drag courses from the pool into period columns to begin building pathways.</p>'
+      : '<p class="empty-msg">No valid pathways yet — each required subject needs at least one course assigned to a period, and no two chosen courses can share a period.</p>';
+    return;
+  }
+
+  // Collect all periods covered across all valid pathways (including linked secondary periods)
+  const allPeriods = new Set();
+  paths.flat().forEach(({ period, secP }) => {
+    allPeriods.add(period);
+    if (secP) allPeriods.add(secP);
+  });
+  const usedPeriods = [...allPeriods].sort((a, b) => a - b);
+  const ordinals = ['', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
+
+  let h = '<table class="ptbl"><thead><tr><th>#</th>';
+  usedPeriods.forEach(p => { h += `<th>${ordinals[p]}</th>`; });
+  h += '</tr></thead><tbody>';
+
+  paths.forEach((path, i) => {
+    // Build period → course map; linked (double-period) courses fill both slots
+    const byPeriod = {};
+    path.forEach(({ course, period, sec, secP }) => {
+      byPeriod[period] = course;
+      if (sec && secP) byPeriod[secP] = sec;
+    });
+
+    h += `<tr><td style="color:var(--text-tertiary);font-size:11px">${i + 1}</td>`;
+    usedPeriods.forEach(p => {
+      const c = byPeriod[p];
+      if (c) {
+        h += `<td><span class="ck k-${c.subject}">${c.groupLabel || c.name}</span></td>`;
+      } else {
+        h += `<td style="color:var(--text-tertiary)">—</td>`;
+      }
+    });
+    h += '</tr>';
+  });
+
+  h += '</tbody></table>';
+  pl.innerHTML = h;
+}
+
+// ── Inline editing ───────────────────────────────────────────────────────────
+function makeEditable(el, course, field, card) {
+  const current = String(course[field] || '');
+  el.textContent = '';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = current;
+  input.className = 'edit-input';
+  el.appendChild(input);
+  card.draggable = false;
+  input.focus();
+  input.select();
+
+  let done = false;
+  const commit = (cancel) => {
+    if (done) return;
+    done = true;
+    if (!cancel) {
+      const v = input.value.trim();
+      if (v) course[field] = v;
+    }
+    card.draggable = true;
+    render();
+  };
+
+  input.addEventListener('blur', () => commit(false));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); commit(false); }
+    if (e.key === 'Escape') { e.preventDefault(); commit(true);  }
+  });
+  // prevent blur from firing twice when Enter is pressed
+  input.addEventListener('mousedown', e => e.stopPropagation());
+}
+
+// ── Export ────────────────────────────────────────────────────────────────────
+function exportPDF() {
+  const date = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const paths = computePaths();
+  document.getElementById('printHeader').innerHTML =
+    `Grade ${currentGrade} Schedule <span>${paths.length} valid pathway${paths.length !== 1 ? 's' : ''} &nbsp;&middot;&nbsp; ${date}</span>`;
+  window.print();
+}
+
+// ── Saved designs ─────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'wcslions-schedule-designs';
+
+function getSaves() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+
+function setSaves(arr) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+}
+
+function showSaveInput() {
+  const row = document.getElementById('saveNameRow');
+  row.style.display = 'flex';
+  const field = document.getElementById('saveNameField');
+  field.value = '';
+  field.focus();
+}
+
+function hideSaveInput() {
+  document.getElementById('saveNameRow').style.display = 'none';
+  document.getElementById('saveNameField').value = '';
+}
+
+function confirmSave() {
+  const name = document.getElementById('saveNameField').value.trim();
+  if (!name) { document.getElementById('saveNameField').focus(); return; }
+  const saves = getSaves();
+  saves.unshift({
+    id: Date.now(),
+    name,
+    grade: currentGrade,
+    date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+    states: JSON.parse(JSON.stringify(gradeStates)),
+  });
+  setSaves(saves);
+  hideSaveInput();
+  renderSaves();
+}
+
+function loadDesign(id) {
+  const s = getSaves().find(x => x.id === id);
+  if (!s) return;
+  // Restore all grade states from the saved snapshot
+  GRADES.forEach(g => {
+    if (s.states[g]) gradeStates[g] = JSON.parse(JSON.stringify(s.states[g]));
+  });
+  currentGrade = s.grade;
+  render();
+}
+
+function deleteDesign(id) {
+  if (!confirm('Delete this saved design?')) return;
+  setSaves(getSaves().filter(x => x.id !== id));
+  renderSaves();
+}
+
+function renderSaves() {
+  const saves = getSaves();
+  const el = document.getElementById('designList');
+  if (!saves.length) {
+    el.innerHTML = '<p class="empty-msg">No saved designs yet. Build a schedule and click "Save current design" to store it.</p>';
+    return;
+  }
+  el.innerHTML = saves.map(s => `
+    <div class="design-item">
+      <div class="design-item-info">
+        <div class="design-item-name">${s.name}</div>
+        <div class="design-item-meta">Grade ${s.grade} &nbsp;·&nbsp; ${s.date} at ${s.time}</div>
+      </div>
+      <div class="design-item-actions">
+        <button class="reset-btn" onclick="loadDesign(${s.id})">Load</button>
+        <button class="del-btn" onclick="deleteDesign(${s.id})">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Allow Enter key to confirm the save name
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('saveNameField').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); confirmSave(); }
+    if (e.key === 'Escape') { e.preventDefault(); hideSaveInput(); }
+  });
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+render();
+renderSaves();
+</script>
+</body>
+</html>
